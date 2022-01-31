@@ -4,45 +4,33 @@ const crypto = require("crypto");
 const keccak256 = require("keccak256");
 
 function generateWallets() {
-  let data = {};
+  let wallets = ["0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266"];
 
-  for (let index = 0; index < 3; index++) {
+  for (let index = 0; index < 90; index++) {
     let id = crypto.randomBytes(32).toString("hex");
     let privateKey = "0x" + id;
     const wallet = new ethers.Wallet(privateKey);
 
-    const address = wallet.address;
-    const faction = `${Math.floor(Math.random() * 3)}`;
-
-    data[address] = faction;
+    wallets.push(wallet.address);
   }
 
-  return data;
-}
-
-function hashAddress(address, faction) {
-  return ethers.utils.solidityKeccak256(
-    ["address", "string"],
-    [address, faction]
-  );
-}
-
-function createLeaves() {
-  const wallets = generateWallets();
-  console.log(`Wallets are: ${JSON.stringify(wallets)}`);
-
-  return Object.entries(wallets).map((wallet) => hashAddress(...wallet));
+  return wallets;
 }
 
 module.exports = function createMerkleTree() {
-  const leaves = createLeaves();
+  const wallets = generateWallets();
 
-  console.log(`Leaves are: ${leaves}`);
+  const leafNodes = wallets.map((wallet) => keccak256(wallet));
+
+  const merkleTree = new MerkleTree(leafNodes, keccak256, {
+    sortPairs: true,
+  });
+
+  const rootHash = merkleTree.getHexRoot();
 
   return {
-    leaves,
-    merkleTree: new MerkleTree(leaves, ethers.utils.keccak256, {
-      sortPairs: true,
-    }),
+    rootHash,
+    leafNodes,
+    merkleTree,
   };
 };

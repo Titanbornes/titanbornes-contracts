@@ -24,7 +24,7 @@ contract OnChain is ERC721Burnable, Pausable, Ownable, ReentrancyGuard {
     enum MintState { WAITING, PRESALE, PUBLIC }
     
     // Variables
-    bytes32 public rootHash;
+    bytes32 public _rootHash;
     bool public _berserk = true;
     uint256 public _maxSupply = 10000;
     address public _renderer;
@@ -74,11 +74,11 @@ contract OnChain is ERC721Burnable, Pausable, Ownable, ReentrancyGuard {
     }
 
     function setRootHash(bytes32 hash_) external onlyOwner {
-    rootHash = hash_;
+    _rootHash = hash_;
   }
 
     // Public Functions
-    function safeMint(bytes32[] calldata proof) public nonReentrant {
+    function safeMint(bytes32[] calldata proof_) public nonReentrant {
         require(_mintState != MintState.WAITING);
         require(!_hasAlreadyMinted[msg.sender]);
         require(balanceOf(msg.sender) == 0);
@@ -91,10 +91,12 @@ contract OnChain is ERC721Burnable, Pausable, Ownable, ReentrancyGuard {
         _metadataMapping[tokenId].faction = 1;
         _metadataMapping[tokenId].fusionCount = 7;
 
-        bytes32 leaf = keccak256(abi.encodePacked(msg.sender));
-
         if(_mintState == MintState.PRESALE) {
-            require(proof.verify(rootHash, leaf), "Not whitelisted.");
+            require(MerkleProof.verify(
+                proof_,
+                _rootHash,
+                keccak256(abi.encodePacked(msg.sender))
+            ), "Not whitelisted.");
             _safeMint(msg.sender, tokenId);
         } else {
             _safeMint(msg.sender, tokenId);

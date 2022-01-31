@@ -1,16 +1,15 @@
 const { expect, assert } = require("chai");
 const { ethers } = require("hardhat");
 const createMerkleTree = require("../utils/createMerkleTree");
+const keccak256 = require("keccak256");
 
 describe("OnChain", async () => {
-  let rootHash,
-    rendererContractFactory,
+  let rendererContractFactory,
     rendererContract,
     collectionContractFactory,
     collectionContract;
 
-  let { leaves, merkleTree } = createMerkleTree();
-  console.log(merkleTree);
+  let { rootHash, leafNodes, merkleTree } = createMerkleTree();
 
   describe("Deploy", () => {
     it("Should deplyoy", async function () {
@@ -33,18 +32,20 @@ describe("OnChain", async () => {
 
   describe("MerkleTree", () => {
     it("Should create and verify Merkle Tree.", async function () {
-      const proof = merkleTree.getHexProof(leaves[0]);
-      rootHash = merkleTree.getHexRoot();
-
-      assert.equal(merkleTree.verify(proof, leaves[0], rootHash), true);
+      assert.equal(
+        merkleTree.verify(
+          merkleTree.getHexProof(leafNodes[0]),
+          leafNodes[0],
+          rootHash
+        ),
+        true
+      );
     });
   });
 
   describe("sendRootHash", () => {
     it("Should send rootHash.", async function () {
-      const tx = await collectionContract.setRootHash(
-        ethers.utils.formatBytes32String(rootHash)
-      );
+      const tx = await collectionContract.setRootHash(rootHash);
       await tx.wait();
     });
   });
@@ -60,13 +61,9 @@ describe("OnChain", async () => {
     it("Should mint.", async function () {
       const [owner, second, third, fourth] = await hre.ethers.getSigners();
 
-      console.log(`Owner is: ${owner.address}`);
-
-      const proof = merkleTree.getHexProof(leaves[0]);
-
-      console.log(`Proof is: ${proof}`);
-
-      const tx = await collectionContract.safeMint(proof);
+      const tx = await collectionContract.safeMint(
+        merkleTree.getHexProof(keccak256(owner.address))
+      );
       await tx.wait();
     });
   });
