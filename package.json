@@ -7,8 +7,7 @@
 	"description": "",
 	"scripts": {
 		"build": "sol-merger \"./contracts/*.sol\" ./build",
-		"rinkeby": "npx hardhat run scripts/deployOnChain.js --network rinkeby",
-		"generate": "node utils/generateAddresses.js"
+		"rinkeby": "npx hardhat run scripts/deployOnChain.js --network rinkeby"
 	},
 	"dependencies": {
 		"@nomiclabs/hardhat-ethers": "^2.0.2",
@@ -22,6 +21,8 @@
 		"ethers": "^5.4.6",
 		"hardhat": "^2.6.2",
 		"hardhat-gas-reporter": "^1.0.4",
+		"keccak256": "^1.0.6",
+		"merkletreejs": "^0.2.27",
 		"sol-merger": "^3.1.0",
 		"solhint": "^3.3.6",
 		"solidity-coverage": "^0.7.17"

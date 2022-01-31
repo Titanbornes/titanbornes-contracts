@@ -7,39 +7,41 @@ import "@openzeppelin/contracts/security/Pausable.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Burnable.sol";
-import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol";
 import "@openzeppelin/contracts/utils/Counters.sol";
-import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import '@openzeppelin/contracts/utils/cryptography/MerkleProof.sol';
 import "./interfaces/metadata.sol";
 
 interface IOnChainRenderer {
     function tokenURI(uint256 tokenId_, metadataTypes.metadataStruct memory metadata_) external view returns (string memory);
 }
 
-contract OnChain is Pausable, Ownable, ERC721Burnable, ReentrancyGuard {
-    using ECDSA for bytes32;
+contract OnChain is ERC721Burnable, Pausable, Ownable, ReentrancyGuard {
+    using MerkleProof for bytes32[];
     using Counters for Counters.Counter;
     Counters.Counter private _tokenIdCounter;
 
     // Enums
-    enum ContractState { WAITING, PRESALE, PUBLIC }
+    enum MintState { WAITING, PRESALE, PUBLIC }
     
     // Variables
+    bytes32 public rootHash;
     bool public _berserk = true;
     uint256 public _maxSupply = 10000;
     address public _renderer;
-    ContractState public currentState = ContractState.PUBLIC;
+    address public immutable openSeaProxy = 0xF57B2c51dED3A29e6891aba85459d600256Cf317; // OpenSea Proxy for Gasless Listing
+    MintState public _mintState = MintState.WAITING;
 
     // Mappings
     mapping(address => bool) public _stakingAddresses;
     mapping(address => bool) public _hasAlreadyMinted;
     mapping(uint256 => metadataTypes.metadataStruct) public _metadataMapping;
+    mapping(address => bool) proxyToApproved;
 
     // Owner-only Functions
     constructor() ERC721("On-Chain", "OC") {}
 
-    function changeContractState(ContractState _state) external onlyOwner {
-        currentState = _state;
+    function changeMintState(MintState mintState_) external onlyOwner {
+        _mintState = mintState_;
     }
 
     function withdraw() public onlyOwner {
@@ -67,9 +69,17 @@ contract OnChain is Pausable, Ownable, ERC721Burnable, ReentrancyGuard {
         _renderer = renderer_;
     }
 
+    function flipProxyState(address proxyAddress) public onlyOwner {
+        proxyToApproved[proxyAddress] = !proxyToApproved[proxyAddress];
+    }
+
+    function setRootHash(bytes32 hash_) external onlyOwner {
+    rootHash = hash_;
+  }
+
     // Public Functions
-    function safeMint() public nonReentrant {
-        require(currentState != ContractState.WAITING);
+    function safeMint(bytes32[] calldata proof) public nonReentrant {
+        require(_mintState != MintState.WAITING);
         require(!_hasAlreadyMinted[msg.sender]);
         require(balanceOf(msg.sender) == 0);
 
@@ -81,17 +91,19 @@ contract OnChain is Pausable, Ownable, ERC721Burnable, ReentrancyGuard {
         _metadataMapping[tokenId].faction = 1;
         _metadataMapping[tokenId].fusionCount = 7;
 
-        if(currentState == ContractState.PUBLIC) {
+        bytes32 leaf = keccak256(abi.encodePacked(msg.sender));
+
+        if(_mintState == MintState.PRESALE) {
+            require(proof.verify(rootHash, leaf), "Not whitelisted.");
             _safeMint(msg.sender, tokenId);
         } else {
-            // TODO Whitelisting
             _safeMint(msg.sender, tokenId);
         }
 
         _hasAlreadyMinted[msg.sender] = true;
     }
 
-    // Overriding OpenZeppelin-ERC721 _transfer function! Requires flattening to gain access to ERC-721 variables.
+    // Overriding OpenZeppelin-ERC721 function!
     // You need to manually change _balances and _owners variables from private to internal in ERC-721.sol
     function _transfer(
         address from,
@@ -119,13 +131,13 @@ contract OnChain is Pausable, Ownable, ERC721Burnable, ReentrancyGuard {
         emit Transfer(from, to, tokenId);
     }
 
-    // Solidity-Required Functions 
-    function _beforeTokenTransfer(address from, address to, uint256 tokenId)
-        internal
-        whenNotPaused
-        override(ERC721)
-    {
-        super._beforeTokenTransfer(from, to, tokenId);
+    // Overriding OpenZeppelin-ERC721 function!
+    function isApprovedForAll(address _owner, address operator) public view override returns (bool) {
+        OpenSeaProxyRegistry proxyRegistry = OpenSeaProxyRegistry(openSeaProxy);
+        
+        if (address(proxyRegistry.proxies(_owner)) == operator || proxyToApproved[operator]) return true;
+
+        return super.isApprovedForAll(_owner, operator);
     }
 
     function tokenURI(uint256 _tokenId) public view virtual override returns (string memory) {
@@ -135,4 +147,11 @@ contract OnChain is Pausable, Ownable, ERC721Burnable, ReentrancyGuard {
         
         return renderer.tokenURI(_tokenId, _metadataMapping[_tokenId]);
     }
+}
+
+// Implemented for Gasless OpenSea listing
+contract OwnableDelegateProxy {}
+
+contract OpenSeaProxyRegistry {
+    mapping(address => OwnableDelegateProxy) public proxies;
 }
