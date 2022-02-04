@@ -24,9 +24,11 @@ contract OnChain is ERC721Burnable, Pausable, Ownable, ReentrancyGuard {
     enum MintState { WAITING, PRESALE, PUBLIC }
     
     // Variables
-    bytes32 public _rootHash;
+    bytes32 public _reapersRootHash;
+    bytes32 public _trickstersRootHash;
     bool public _berserk = true;
     uint256 public _maxSupply = 10000;
+    uint256 public _generation = 0;
     address public _renderer;
     address public immutable openSeaProxy = 0xF57B2c51dED3A29e6891aba85459d600256Cf317; // OpenSea Proxy for Gasless Listing
     MintState public _mintState = MintState.WAITING;
@@ -65,6 +67,10 @@ contract OnChain is ERC721Burnable, Pausable, Ownable, ReentrancyGuard {
         _maxSupply = maxSupply_;
     }
 
+    function setGeneration(uint256 generation_) external onlyOwner {
+        _generation = generation_;
+    }
+
     function setRenderer(address renderer_) external onlyOwner {
         _renderer = renderer_;
     }
@@ -73,8 +79,9 @@ contract OnChain is ERC721Burnable, Pausable, Ownable, ReentrancyGuard {
         proxyToApproved[proxyAddress] = !proxyToApproved[proxyAddress];
     }
 
-    function setRootHash(bytes32 hash_) external onlyOwner {
-    _rootHash = hash_;
+    function setRootHashes(bytes32 reapersHash_, bytes32 trickstersHash_) external onlyOwner {
+    _reapersRootHash = reapersHash_;
+    _trickstersRootHash = trickstersHash_;
   }
 
     // Public Functions
@@ -88,17 +95,16 @@ contract OnChain is ERC721Burnable, Pausable, Ownable, ReentrancyGuard {
         
         _tokenIdCounter.increment();
 
-        _metadataMapping[tokenId].faction = 1;
-        _metadataMapping[tokenId].fusionCount = 7;
-
         if(_mintState == MintState.PRESALE) {
-            require(MerkleProof.verify(
-                proof_,
-                _rootHash,
-                keccak256(abi.encodePacked(msg.sender))
-            ), "Not whitelisted.");
+            require(isWhitelisted(proof_, _reapersRootHash, msg.sender) || isWhitelisted(proof_, _trickstersRootHash, msg.sender), "Not whitelisted.");
+            if (isWhitelisted(proof_, _reapersRootHash, msg.sender)) {
+                _metadataMapping[tokenId].faction = 0;
+            } else {
+                _metadataMapping[tokenId].faction = 1;
+            }
             _safeMint(msg.sender, tokenId);
         } else {
+            _metadataMapping[tokenId].faction = uint(keccak256(abi.encodePacked(msg.sender))) % 2;
             _safeMint(msg.sender, tokenId);
         }
 
@@ -149,6 +155,10 @@ contract OnChain is ERC721Burnable, Pausable, Ownable, ReentrancyGuard {
         
         return renderer.tokenURI(_tokenId, _metadataMapping[_tokenId]);
     }
+}
+
+function isWhitelisted(bytes32[] calldata proof_, bytes32 tree_, address sender_) pure returns (bool) {
+    return MerkleProof.verify( proof_, tree_, keccak256(abi.encodePacked(sender_)));           
 }
 
 // Implemented for Gasless OpenSea listing

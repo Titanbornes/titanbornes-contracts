@@ -9,11 +9,11 @@ contract Renderer {
     constructor() {}
     
     function tokenURI(uint256 tokenId_, metadataTypes.metadataStruct memory metadata_) external pure returns (string memory) {        
-        string[2] memory factions = ["Demon", "Demon Hunter"];
+        string[2] memory factions = ["Reapers", "Tricksters"];
 
-        string memory _attributeNamePrefix = "On-Chain NFT #";
+        string memory _attributeNamePrefix = "Titanborne #";
         string memory _attributeDescription = "On-Chain Storytelling Experiment.";
-        string memory _attributeTraits = string(abi.encodePacked('"attributes": [{"trait_type": "Fusion Count","value": ', toString(metadata_.fusionCount),'},{"trait_type": "Faction","value": "', factions[metadata_.faction],'"}]'));
+        string memory _attributeTraits = string(abi.encodePacked('"attributes": [{"trait_type": "Fusion Count","value": ', toString(metadata_.fusionCount),'},{"trait_type": "Faction","value": "', factions[metadata_.faction],'"},{"trait_type": "Generation","value": "', toString(metadata_.generation),'"}]'));
         string memory beginning = string(abi.encodePacked('<svg xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMinYMin meet" viewBox="0 0 1000 1000"><style>.base { fill: white; font-family: serif; font-size: 14px; }</style><rect width="100%" height="100%" fill="lightsalmon"/>'));
         string memory middle = "";
         string memory end = '</svg>';

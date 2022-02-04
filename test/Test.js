@@ -9,7 +9,17 @@ describe("OnChain", async () => {
     collectionContractFactory,
     collectionContract;
 
-  let { rootHash, leafNodes, merkleTree } = createMerkleTree();
+  let {
+    rootHash: nightmaresRootHash,
+    leafNodes: nightmaresLeafNodes,
+    merkleTree: nightmaresMerkleTree,
+  } = createMerkleTree();
+
+  let {
+    rootHash: trickstersRootHash,
+    leafNodes: trickstersLeafNodes,
+    merkleTree: trickstersMerkleTree,
+  } = createMerkleTree();
 
   describe("Deploy", () => {
     it("Should deplyoy", async function () {
@@ -33,10 +43,18 @@ describe("OnChain", async () => {
   describe("MerkleTree", () => {
     it("Should create and verify Merkle Tree.", async function () {
       assert.equal(
-        merkleTree.verify(
-          merkleTree.getHexProof(leafNodes[0]),
-          leafNodes[0],
-          rootHash
+        nightmaresMerkleTree.verify(
+          nightmaresMerkleTree.getHexProof(nightmaresLeafNodes[0]),
+          nightmaresLeafNodes[0],
+          nightmaresRootHash
+        ),
+        true
+      );
+      assert.equal(
+        trickstersMerkleTree.verify(
+          trickstersMerkleTree.getHexProof(trickstersLeafNodes[0]),
+          trickstersLeafNodes[0],
+          trickstersRootHash
         ),
         true
       );
@@ -45,7 +63,10 @@ describe("OnChain", async () => {
 
   describe("sendRootHash", () => {
     it("Should send rootHash.", async function () {
-      const tx = await collectionContract.setRootHash(rootHash);
+      const tx = await collectionContract.setRootHashes(
+        nightmaresRootHash,
+        trickstersRootHash
+      );
       await tx.wait();
     });
   });
@@ -62,9 +83,14 @@ describe("OnChain", async () => {
       const [owner, second, third, fourth] = await hre.ethers.getSigners();
 
       const tx = await collectionContract.safeMint(
-        merkleTree.getHexProof(keccak256(owner.address))
+        nightmaresMerkleTree.getHexProof(keccak256(owner.address))
       );
       await tx.wait();
+
+      const uri = await collectionContract.tokenURI(0);
+      console.log(
+        Buffer.from(uri.substr(29, uri.length), "base64").toString("utf8")
+      );
     });
   });
 });

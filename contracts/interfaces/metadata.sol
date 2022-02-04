@@ -4,6 +4,7 @@ pragma solidity ^0.8.0;
 
 interface metadataTypes {
     struct metadataStruct {
+        uint256 generation;
         uint256 fusionCount;
         uint256 faction;
         string name;
