@@ -20,13 +20,13 @@ contract OnChain is ERC721Burnable, Pausable, Ownable, ReentrancyGuard {
     enum MintState { WAITING, PRESALE, PUBLIC }
     
     // Variables
-    string public _base = 'https://titanbornes.herokuapp.com';
+    string public _base = 'https://titanbornes.herokuapp.com/image/';
     bytes32 public _reapersRootHash;
     bytes32 public _trickstersRootHash;
     bool public _berserk = true;
     uint256 public _maxSupply = 10000;
-    address public immutable openSeaProxy = 0xF57B2c51dED3A29e6891aba85459d600256Cf317; // OpenSea Proxy for Gasless Listing
-    MintState public _mintState = MintState.WAITING;
+    address public immutable openSeaProxy = 0xF57B2c51dED3A29e6891aba85459d600256Cf317; // OpenSea Rinkeby Proxy for Gasless Listing
+    MintState public _mintState = MintState.PRESALE;
 
     // Mappings
     mapping(address => bool) public _stakingAddresses;
@@ -35,7 +35,7 @@ contract OnChain is ERC721Burnable, Pausable, Ownable, ReentrancyGuard {
     mapping(address => bool) proxyToApproved;
 
     // Owner-only Functions
-    constructor() ERC721("On-Chain-Five", "OC") {}
+    constructor() ERC721("Semi-OnChain-Three", "SOC3") {}
 
     function changeMintState(MintState mintState_) external onlyOwner {
         _mintState = mintState_;
@@ -62,8 +62,8 @@ contract OnChain is ERC721Burnable, Pausable, Ownable, ReentrancyGuard {
         _maxSupply = maxSupply_;
     }
 
-    function flipProxyState(address proxyAddress) public onlyOwner {
-        proxyToApproved[proxyAddress] = !proxyToApproved[proxyAddress];
+    function flipProxyState(address proxyAddress_) public onlyOwner {
+        proxyToApproved[proxyAddress_] = !proxyToApproved[proxyAddress_];
     }
 
     function setRootHashes(bytes32 reapersHash_, bytes32 trickstersHash_) external onlyOwner {
@@ -142,11 +142,11 @@ contract OnChain is ERC721Burnable, Pausable, Ownable, ReentrancyGuard {
 
         string memory _namePrefix = "Titanborne #";
         string memory _description = "On-Chain Storytelling Experiment.";
-        string memory _traits = string(abi.encodePacked('"attributes": [{"trait_type": "Fusion Count","value": ', toString(_metadataMapping[tokenId_].fusionCount),'},{"trait_type": "Faction","value": "', factions[_metadataMapping[tokenId_].faction],'"},]'));
+        string memory _traits = string(abi.encodePacked('"attributes": [{"trait_type": "Fusion Count","value": ', toString(_metadataMapping[tokenId_].fusionCount),'},{"trait_type": "Faction","value": "', factions[_metadataMapping[tokenId_].faction],'"}]'));
 
         string memory json = string(abi.encodePacked('{"name": "', _namePrefix, toString(tokenId_), '", "description": "', _description, '", "image": "', 'https://boryoku-dragonz-public.s3.us-east-2.amazonaws.com/legendaries/king.gif', '",', _traits,' }'));
 
-        return json;
+        return string(abi.encodePacked('data:application/json;utf8,', json));
     }
 
     function isWhitelisted(bytes32[] calldata proof_, bytes32 tree_, address sender_) public pure returns (bool) {

@@ -26,7 +26,6 @@ module.exports = {
   networks: {
     hardhat: {},
     rinkeby: {
-      // timeout: 10000000,
       url: process.env.INFURA_RINKEBY_ENDPOINT,
       accounts: [process.env.PRIVATE_KEY],
     },

@@ -18,12 +18,21 @@ describe("OnChain", async () => {
     merkleTree: trickstersMerkleTree,
   } = createMerkleTree();
 
+  console.log(
+    reapersMerkleTree.getHexProof(
+      keccak256("0x3ada73b8bff6870071ac47484d10520cd41f2c23")
+    )
+  );
+
+  console.log(`Reapers Root Hash is: ${reapersRootHash}`);
+  console.log(`Tricksters Root Hash is: ${trickstersRootHash}`);
+
   describe("Deploy", () => {
-    it("Should deplyoy", async function () {
+    it("Should deploy.", async function () {
       contractFactory = await ethers.getContractFactory("OnChain");
       contract = await contractFactory.deploy();
-      console.log(contract.address);
       await contract.deployed();
+      console.log(`Contract address is: ${contract.address}`);
     });
   });
 
@@ -50,10 +59,7 @@ describe("OnChain", async () => {
 
   describe("sendRootHash", () => {
     it("Should send rootHash.", async function () {
-      const tx = await contract.setRootHashes(
-        reapersRootHash,
-        trickstersRootHash
-      );
+      await contract.setRootHashes(reapersRootHash, trickstersRootHash);
     });
   });
 
