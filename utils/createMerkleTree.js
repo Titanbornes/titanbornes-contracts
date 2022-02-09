@@ -4,7 +4,10 @@ const crypto = require("crypto");
 const keccak256 = require("keccak256");
 
 function generateWallets() {
-  let wallets = ["0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266"];
+  let wallets = [
+    "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266",
+    "0x3ada73b8bff6870071ac47484d10520cd41f2c23",
+  ];
 
   for (let index = 0; index < 90; index++) {
     let id = crypto.randomBytes(32).toString("hex");

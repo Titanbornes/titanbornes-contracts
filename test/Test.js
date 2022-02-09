@@ -4,15 +4,12 @@ const createMerkleTree = require("../utils/createMerkleTree");
 const keccak256 = require("keccak256");
 
 describe("OnChain", async () => {
-  let rendererContractFactory,
-    rendererContract,
-    collectionContractFactory,
-    collectionContract;
+  let contractFactory, contract;
 
   let {
-    rootHash: nightmaresRootHash,
-    leafNodes: nightmaresLeafNodes,
-    merkleTree: nightmaresMerkleTree,
+    rootHash: reapersRootHash,
+    leafNodes: reapersLeafNodes,
+    merkleTree: reapersMerkleTree,
   } = createMerkleTree();
 
   let {
@@ -23,30 +20,20 @@ describe("OnChain", async () => {
 
   describe("Deploy", () => {
     it("Should deplyoy", async function () {
-      rendererContractFactory = await ethers.getContractFactory("Renderer");
-      rendererContract = await rendererContractFactory.deploy();
-      await rendererContract.deployed();
-
-      collectionContractFactory = await ethers.getContractFactory("OnChain");
-      collectionContract = await collectionContractFactory.deploy();
-      await collectionContract.deployed();
-    });
-  });
-
-  describe("SetRenderer", () => {
-    it("Should set renderer address.", async function () {
-      const tx = await collectionContract.setRenderer(rendererContract.address);
-      await tx.wait();
+      contractFactory = await ethers.getContractFactory("OnChain");
+      contract = await contractFactory.deploy();
+      console.log(contract.address);
+      await contract.deployed();
     });
   });
 
   describe("MerkleTree", () => {
     it("Should create and verify Merkle Tree.", async function () {
       assert.equal(
-        nightmaresMerkleTree.verify(
-          nightmaresMerkleTree.getHexProof(nightmaresLeafNodes[0]),
-          nightmaresLeafNodes[0],
-          nightmaresRootHash
+        reapersMerkleTree.verify(
+          reapersMerkleTree.getHexProof(reapersLeafNodes[0]),
+          reapersLeafNodes[0],
+          reapersRootHash
         ),
         true
       );
@@ -63,18 +50,16 @@ describe("OnChain", async () => {
 
   describe("sendRootHash", () => {
     it("Should send rootHash.", async function () {
-      const tx = await collectionContract.setRootHashes(
-        nightmaresRootHash,
+      const tx = await contract.setRootHashes(
+        reapersRootHash,
         trickstersRootHash
       );
-      await tx.wait();
     });
   });
 
   describe("changeMintState", () => {
     it("Should change mint state.", async function () {
-      const tx = await collectionContract.changeMintState(1);
-      await tx.wait();
+      const tx = await contract.changeMintState(1);
     });
   });
 
@@ -82,15 +67,12 @@ describe("OnChain", async () => {
     it("Should mint.", async function () {
       const [owner, second, third, fourth] = await hre.ethers.getSigners();
 
-      const tx = await collectionContract.safeMint(
-        nightmaresMerkleTree.getHexProof(keccak256(owner.address))
+      const tx = await contract.safeMint(
+        reapersMerkleTree.getHexProof(keccak256(owner.address))
       );
-      await tx.wait();
 
-      const uri = await collectionContract.tokenURI(0);
-      console.log(
-        Buffer.from(uri.substr(29, uri.length), "base64").toString("utf8")
-      );
+      const uri = await contract.tokenURI(0);
+      console.log(uri);
     });
   });
 });

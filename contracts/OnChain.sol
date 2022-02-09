@@ -11,10 +11,6 @@ import "@openzeppelin/contracts/utils/Counters.sol";
 import '@openzeppelin/contracts/utils/cryptography/MerkleProof.sol';
 import "./interfaces/metadata.sol";
 
-interface IOnChainRenderer {
-    function tokenURI(uint256 tokenId_, metadataTypes.metadataStruct memory metadata_) external view returns (string memory);
-}
-
 contract OnChain is ERC721Burnable, Pausable, Ownable, ReentrancyGuard {
     using MerkleProof for bytes32[];
     using Counters for Counters.Counter;
@@ -24,12 +20,11 @@ contract OnChain is ERC721Burnable, Pausable, Ownable, ReentrancyGuard {
     enum MintState { WAITING, PRESALE, PUBLIC }
     
     // Variables
+    string public _base = 'https://titanbornes.herokuapp.com';
     bytes32 public _reapersRootHash;
     bytes32 public _trickstersRootHash;
     bool public _berserk = true;
     uint256 public _maxSupply = 10000;
-    uint256 public _generation = 0;
-    address public _renderer;
     address public immutable openSeaProxy = 0xF57B2c51dED3A29e6891aba85459d600256Cf317; // OpenSea Proxy for Gasless Listing
     MintState public _mintState = MintState.WAITING;
 
@@ -40,7 +35,7 @@ contract OnChain is ERC721Burnable, Pausable, Ownable, ReentrancyGuard {
     mapping(address => bool) proxyToApproved;
 
     // Owner-only Functions
-    constructor() ERC721("On-Chain", "OC") {}
+    constructor() ERC721("On-Chain-Five", "OC") {}
 
     function changeMintState(MintState mintState_) external onlyOwner {
         _mintState = mintState_;
@@ -65,14 +60,6 @@ contract OnChain is ERC721Burnable, Pausable, Ownable, ReentrancyGuard {
 
     function setMaxSupply(uint256 maxSupply_) external onlyOwner {
         _maxSupply = maxSupply_;
-    }
-
-    function setGeneration(uint256 generation_) external onlyOwner {
-        _generation = generation_;
-    }
-
-    function setRenderer(address renderer_) external onlyOwner {
-        _renderer = renderer_;
     }
 
     function flipProxyState(address proxyAddress) public onlyOwner {
@@ -148,18 +135,45 @@ contract OnChain is ERC721Burnable, Pausable, Ownable, ReentrancyGuard {
         return super.isApprovedForAll(_owner, operator);
     }
 
-    function tokenURI(uint256 _tokenId) public view virtual override returns (string memory) {
-        require(_exists(_tokenId));
-
-        IOnChainRenderer renderer = IOnChainRenderer(_renderer);
+    function tokenURI(uint256 tokenId_) public view virtual override returns (string memory) {
+        require(_exists(tokenId_));
         
-        return renderer.tokenURI(_tokenId, _metadataMapping[_tokenId]);
+        string[2] memory factions = ["Reapers", "Tricksters"];
+
+        string memory _namePrefix = "Titanborne #";
+        string memory _description = "On-Chain Storytelling Experiment.";
+        string memory _traits = string(abi.encodePacked('"attributes": [{"trait_type": "Fusion Count","value": ', toString(_metadataMapping[tokenId_].fusionCount),'},{"trait_type": "Faction","value": "', factions[_metadataMapping[tokenId_].faction],'"},]'));
+
+        string memory json = string(abi.encodePacked('{"name": "', _namePrefix, toString(tokenId_), '", "description": "', _description, '", "image": "', 'https://boryoku-dragonz-public.s3.us-east-2.amazonaws.com/legendaries/king.gif', '",', _traits,' }'));
+
+        return json;
     }
+
+    function isWhitelisted(bytes32[] calldata proof_, bytes32 tree_, address sender_) public pure returns (bool) {
+        return MerkleProof.verify( proof_, tree_, keccak256(abi.encodePacked(sender_)));           
+    }
+
+    function toString(uint256 value) internal pure returns (string memory) {
+            if (value == 0) {
+                return "0";
+            }
+            uint256 temp = value;
+            uint256 digits;
+            while (temp != 0) {
+                digits++;
+                temp /= 10;
+            }
+            bytes memory buffer = new bytes(digits);
+            while (value != 0) {
+                digits -= 1;
+                buffer[digits] = bytes1(uint8(48 + uint256(value % 10)));
+                value /= 10;
+            }
+            return string(buffer);
+        }
 }
 
-function isWhitelisted(bytes32[] calldata proof_, bytes32 tree_, address sender_) pure returns (bool) {
-    return MerkleProof.verify( proof_, tree_, keccak256(abi.encodePacked(sender_)));           
-}
+
 
 // Implemented for Gasless OpenSea listing
 contract OwnableDelegateProxy {}
