@@ -20,9 +20,9 @@ contract OnChain is ERC721Burnable, Pausable, Ownable, ReentrancyGuard {
     enum MintState { WAITING, PRESALE, PUBLIC }
     
     // Variables
-    string public _base = 'https://titanbornes.herokuapp.com/api/image/';
-    bytes32 public _reapersRootHash;
-    bytes32 public _trickstersRootHash;
+    string public _base = 'https://titanbornes.herokuapp.com/images/';
+    bytes32 public _reapersRoot;
+    bytes32 public _trickstersRoot;
     bool public _berserk = true;
     uint256 public _maxSupply = 10000;
     address public immutable openSeaProxy = 0xF57B2c51dED3A29e6891aba85459d600256Cf317; // OpenSea Rinkeby Proxy for Gasless Listing
@@ -32,11 +32,11 @@ contract OnChain is ERC721Burnable, Pausable, Ownable, ReentrancyGuard {
     mapping(address => bool) public _stakingAddresses;
     mapping(address => bool) public _hasMinted;
     mapping(address => uint256[]) public _tokens;
-    mapping(uint256 => metadataTypes.metadataStruct) public _metadataMapping;
+    mapping(uint256 => attributes.attrStruct) public _attributes;
     mapping(address => bool) _approvedProxies;
 
     // Owner-only Functions
-    constructor() ERC721("Semi-OnChain-Four", "SOC4") {}
+    constructor() ERC721("Semi-OnChain-Five", "SOC5") {}
 
     function changeMintState(MintState mintState_) external onlyOwner {
         _mintState = mintState_;
@@ -67,9 +67,9 @@ contract OnChain is ERC721Burnable, Pausable, Ownable, ReentrancyGuard {
         _approvedProxies[proxyAddress_] = !_approvedProxies[proxyAddress_];
     }
 
-    function setRootHashes(bytes32 reapersHash_, bytes32 trickstersHash_) external onlyOwner {
-        _reapersRootHash = reapersHash_;
-        _trickstersRootHash = trickstersHash_;
+    function setRootHashes(bytes32 reapers_, bytes32 tricksters_) external onlyOwner {
+        _reapersRoot = reapers_;
+        _trickstersRoot = tricksters_;
     }
 
     // Public Functions
@@ -84,15 +84,15 @@ contract OnChain is ERC721Burnable, Pausable, Ownable, ReentrancyGuard {
         _tokenIdCounter.increment();
 
         if(_mintState == MintState.PRESALE) {
-            require(isWhitelisted(proof_, _reapersRootHash, msg.sender) || isWhitelisted(proof_, _trickstersRootHash, msg.sender), "Not whitelisted.");
-            if (isWhitelisted(proof_, _reapersRootHash, msg.sender)) {
-                _metadataMapping[tokenId].faction = 'Reapers';
+            require(isWhitelisted(proof_, _reapersRoot, msg.sender) || isWhitelisted(proof_, _trickstersRoot, msg.sender), "Not whitelisted.");
+            if (isWhitelisted(proof_, _reapersRoot, msg.sender)) {
+                _attributes[tokenId].faction = 'Reapers';
             } else {
-                _metadataMapping[tokenId].faction = 'Tricksters';
+                _attributes[tokenId].faction = 'Tricksters';
             }
             _safeMint(msg.sender, tokenId);
         } else {
-            _metadataMapping[tokenId].faction = uint(keccak256(abi.encodePacked(msg.sender))) % 2 == 0 ? 'Reapers' : 'Tricksters';
+            _attributes[tokenId].faction = uint(keccak256(abi.encodePacked(msg.sender))) % 2 == 0 ? 'Reapers' : 'Tricksters';
             _safeMint(msg.sender, tokenId);
         }
 
@@ -122,7 +122,7 @@ contract OnChain is ERC721Burnable, Pausable, Ownable, ReentrancyGuard {
             _owners[tokenId] = to;
             _tokens[to].push(tokenId);
         } else {
-            _metadataMapping[_tokens[to][0]].fusionCount += _metadataMapping[tokenId].fusionCount;
+            _attributes[_tokens[to][0]].fusionCount == 0 ? _attributes[_tokens[to][0]].fusionCount += 1 : _attributes[_tokens[to][0]].fusionCount+= _attributes[tokenId].fusionCount;
             burn(tokenId);
         }
 
@@ -142,11 +142,11 @@ contract OnChain is ERC721Burnable, Pausable, Ownable, ReentrancyGuard {
     function tokenURI(uint256 tokenId_) public view virtual override returns (string memory) {
         require(_exists(tokenId_));
         
-        string memory _namePrefix = "Titanborne #";
+        string memory _namePrefix = "Token #";
         string memory _description = "On-Chain Storytelling Experiment.";
-        string memory _traits = string(abi.encodePacked('"attributes": [{"trait_type": "Fusion Count","value": ', toString(_metadataMapping[tokenId_].fusionCount),'},{"trait_type": "Faction","value": "', _metadataMapping[tokenId_].faction,'"}]'));
+        string memory _traits = string(abi.encodePacked('"attributes": [{"trait_type": "Fusion Count","value": ', toString(_attributes[tokenId_].fusionCount),'},{"trait_type": "Faction","value": "', _attributes[tokenId_].faction,'"}]'));
 
-        string memory json = string(abi.encodePacked('{"name": "', _namePrefix, toString(tokenId_), '", "description": "', _description, '", "image": "', 'https://boryoku-dragonz-public.s3.us-east-2.amazonaws.com/legendaries/king.gif', '",', _traits,' }'));
+        string memory json = string(abi.encodePacked('{"name": "', _namePrefix, toString(tokenId_), '", "description": "', _description, '", "image": "', _base, toString(_attributes[tokenId_].fusionCount),'.png', '",', _traits,' }'));
 
         return string(abi.encodePacked('data:application/json;utf8,', json));
     }

@@ -26,7 +26,7 @@ module.exports = {
   networks: {
     hardhat: {},
     rinkeby: {
-      url: process.env.INFURA_RINKEBY_ENDPOINT,
+      url: process.env.ALCHEMY_RINKEBY_ENDPOINT,
       accounts: [process.env.PRIVATE_KEY],
     },
     ethereum: {

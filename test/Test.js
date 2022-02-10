@@ -65,7 +65,7 @@ describe("OnChain", async () => {
 
   describe("changeMintState", () => {
     it("Should change mint state.", async function () {
-      const tx = await contract.changeMintState(1);
+      await contract.changeMintState(1);
     });
   });
 
@@ -74,7 +74,9 @@ describe("OnChain", async () => {
       const [owner, second, third, fourth] = await hre.ethers.getSigners();
 
       const tx = await contract.safeMint(
-        reapersMerkleTree.getHexProof(keccak256(owner.address))
+        reapersMerkleTree.getHexProof(
+          keccak256("0x3ada73b8bff6870071ac47484d10520cd41f2c23")
+        )
       );
 
       const uri = await contract.tokenURI(0);
