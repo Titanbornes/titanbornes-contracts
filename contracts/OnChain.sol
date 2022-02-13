@@ -24,16 +24,17 @@ contract OnChain is ERC721Burnable, Pausable, Ownable, ReentrancyGuard {
     bytes32 public _reapersRoot;
     bytes32 public _trickstersRoot;
     bool public _berserk = true;
+    bool public _characterized;
     uint256 public _maxSupply = 10000;
     address public immutable openSeaProxy = 0xF57B2c51dED3A29e6891aba85459d600256Cf317; // OpenSea Rinkeby Proxy for Gasless Listing
     MintState public _mintState = MintState.PRESALE;
 
     // Mappings
     mapping(address => bool) public _stakingAddresses;
+    mapping(address => bool) _approvedProxies;
     mapping(address => bool) public _hasMinted;
     mapping(address => uint256[]) public _tokens;
     mapping(uint256 => attributes.attrStruct) public _attributes;
-    mapping(address => bool) _approvedProxies;
 
     // Owner-only Functions
     constructor() ERC721("Semi-OnChain-Five", "SOC5") {}
@@ -42,16 +43,16 @@ contract OnChain is ERC721Burnable, Pausable, Ownable, ReentrancyGuard {
         _mintState = mintState_;
     }
 
-    function withdraw() public onlyOwner {
+    function withdraw() external onlyOwner {
         (bool success,) = msg.sender.call{value : address(this).balance}('');
         require(success);
     }
 
-    function pause() public onlyOwner {
+    function pause() external onlyOwner {
         _pause();
     }
 
-    function unpause() public onlyOwner {
+    function unpause() external onlyOwner {
         _unpause();
     }
 
@@ -59,11 +60,19 @@ contract OnChain is ERC721Burnable, Pausable, Ownable, ReentrancyGuard {
         _berserk = berserk_;
     }
 
+    function characterize(uint256[] calldata indexes_, string[] calldata names_, string[] calldata descriptions_) external onlyOwner {
+        _characterized = true;
+        for (uint256 i = 0; i < indexes_.length; i++) {
+            _attributes[indexes_[i]].name = names_[i];
+            _attributes[indexes_[i]].description = descriptions_[i];
+        }
+    }
+
     function setMaxSupply(uint256 maxSupply_) external onlyOwner {
         _maxSupply = maxSupply_;
     }
 
-    function flipProxyState(address proxyAddress_) public onlyOwner {
+    function flipProxyState(address proxyAddress_) external onlyOwner {
         _approvedProxies[proxyAddress_] = !_approvedProxies[proxyAddress_];
     }
 
@@ -74,17 +83,17 @@ contract OnChain is ERC721Burnable, Pausable, Ownable, ReentrancyGuard {
 
     // Public Functions
     function safeMint(bytes32[] calldata proof_) public nonReentrant {
-        require(_mintState != MintState.WAITING);
-        require(!_hasMinted[msg.sender]);
-        require(balanceOf(msg.sender) == 0);
+        require(_mintState != MintState.WAITING, 'MINTING DISABLED');
+        require(!_hasMinted[msg.sender], 'ALREADY MINTED');
+        require(balanceOf(msg.sender) == 0, 'ALREADY OWNS');
 
         uint256 tokenId = _tokenIdCounter.current();
-        require(tokenId < _maxSupply);
+        require(tokenId < _maxSupply, 'ALL MINTED');
         
         _tokenIdCounter.increment();
 
         if(_mintState == MintState.PRESALE) {
-            require(isWhitelisted(proof_, _reapersRoot, msg.sender) || isWhitelisted(proof_, _trickstersRoot, msg.sender), "Not whitelisted.");
+            require(isWhitelisted(proof_, _reapersRoot, msg.sender) || isWhitelisted(proof_, _trickstersRoot, msg.sender), "NOT WHITELISTED");
             if (isWhitelisted(proof_, _reapersRoot, msg.sender)) {
                 _attributes[tokenId].faction = 'Reapers';
             } else {
@@ -107,7 +116,7 @@ contract OnChain is ERC721Burnable, Pausable, Ownable, ReentrancyGuard {
         address to,
         uint256 tokenId
     ) internal override {
-        require(ERC721.ownerOf(tokenId) == from);
+        require(ERC721.ownerOf(tokenId) == from, 'NOT OWNER');
         require(to != address(0));
         require(from != to);
 
@@ -140,10 +149,10 @@ contract OnChain is ERC721Burnable, Pausable, Ownable, ReentrancyGuard {
     }
 
     function tokenURI(uint256 tokenId_) public view virtual override returns (string memory) {
-        require(_exists(tokenId_));
+        require(_exists(tokenId_), 'NONEXISTENT');
         
-        string memory _namePrefix = "Token #";
-        string memory _description = "On-Chain Storytelling Experiment.";
+        string memory _namePrefix = _characterized ? _attributes[tokenId_].name : "Token #";
+        string memory _description = _characterized ? _attributes[tokenId_].description : "On-Chain Storytelling Experiment.";
         string memory _traits = string(abi.encodePacked('"attributes": [{"trait_type": "Fusion Count","value": ', toString(_attributes[tokenId_].fusionCount),'},{"trait_type": "Faction","value": "', _attributes[tokenId_].faction,'"}]'));
 
         string memory json = string(abi.encodePacked('{"name": "', _namePrefix, toString(tokenId_), '", "description": "', _description, '", "image": "', _base, toString(_attributes[tokenId_].fusionCount),'.png', '",', _traits,' }'));

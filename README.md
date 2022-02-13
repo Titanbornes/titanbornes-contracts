@@ -1,5 +1,3 @@
-# Contracts
-
 ![Titanbornes_Cover@0,5x](https://user-images.githubusercontent.com/45223699/151791982-78605257-20fb-49af-9d3e-08d324f98b25.png)
 
 ## Compiling and Basic Deployment
