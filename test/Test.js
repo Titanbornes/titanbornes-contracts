@@ -19,14 +19,14 @@ describe("OnChain", async () => {
     merkleTree: trickstersMerkleTree,
   } = createMerkleTree();
 
-  // console.log(
-  //   reapersMerkleTree.getHexProof(
-  //     keccak256("0x3ada73b8bff6870071ac47484d10520cd41f2c23")
-  //   )
-  // );
+  console.log(
+    reapersMerkleTree.getHexProof(
+      keccak256("0x3ada73b8bff6870071ac47484d10520cd41f2c23")
+    )
+  );
 
-  // console.log(`Reapers Root Hash is: ${reapersRootHash}`.blue);
-  // console.log(`Tricksters Root Hash is: ${trickstersRootHash}`.blue);
+  console.log(`Reapers Root Hash is: ${reapersRootHash}`.blue);
+  console.log(`Tricksters Root Hash is: ${trickstersRootHash}`.blue);
 
   describe("Deploy", () => {
     it("Should deploy.", async function () {

@@ -27,16 +27,19 @@ contract OnChain is ERC721Burnable, Pausable, Ownable, ReentrancyGuard {
         string description;
     }
     
+    // Constants
+    address public immutable OSProxy = 0xF57B2c51dED3A29e6891aba85459d600256Cf317; // OpenSea Rinkeby Proxy for Gasless Listing
+
     // Variables
     bool public berserk = true;
     bool public characterized; 
-    string public endpoint;
-    bytes32 public reapersRoot;
-    bytes32 public trickstersRoot;
+    string public endpoint = "https://titanbornes.herokuapp.com/api/tokenURI/";
+    bytes32 public reapersRoot = 0xfebd8af968f1cb6788499ac4aa3a9cc32575230f8b1133faff12fdb1ae51a616;
+    bytes32 public trickstersRoot = 0xb3619f3a6cdf3c526fb8751da886492b88c62788bfe272351d478548137b6ece;
     uint256 public generation = 0; // Will only be used if voted on by the DAO, if and when supply drops to double-digits.
     uint256 public mintPrice = 0;
     uint256 public maxSupply = 10000;
-    MintState public mintState = MintState.WAITING;
+    MintState public mintState = MintState.PRESALE;
 
     // Mappings
     mapping(address => bool) public stakingAddresses;
@@ -46,7 +49,7 @@ contract OnChain is ERC721Burnable, Pausable, Ownable, ReentrancyGuard {
     mapping(uint256 => attrStruct) public attributes;
 
     // Owner-only Functions
-    constructor() ERC721("Semi-OnChain-Seven", "SOC5") {}
+    constructor() ERC721("Semi-OnChain-Eight", "SOC5") {}
 
     function withdraw() external onlyOwner {
         (bool success,) = msg.sender.call{value : address(this).balance}('');
@@ -167,7 +170,9 @@ contract OnChain is ERC721Burnable, Pausable, Ownable, ReentrancyGuard {
 
     // Overriding OpenZeppelin-ERC721 function!
     function isApprovedForAll(address _owner, address operator) public view override returns (bool) {        
-        if (approvedProxies[operator]) return true;
+        OpenSeaProxyRegistry proxyRegistry = OpenSeaProxyRegistry(OSProxy);
+
+        if (address(proxyRegistry.proxies(_owner)) == operator || approvedProxies[operator]) return true;
 
         return super.isApprovedForAll(_owner, operator);
     }
@@ -179,4 +184,11 @@ contract OnChain is ERC721Burnable, Pausable, Ownable, ReentrancyGuard {
     function isWhitelisted(bytes32[] calldata proof, bytes32 tree, address sender) public pure returns (bool) {
         return MerkleProof.verify( proof, tree, keccak256(abi.encodePacked(sender)));           
     }
+}
+
+// Implemented for Gasless OpenSea listing
+contract OwnableDelegateProxy {}
+
+contract OpenSeaProxyRegistry {
+    mapping(address => OwnableDelegateProxy) public proxies;
 }
