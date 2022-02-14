@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-// Author: Accretence
+// Author: @Accretence
 pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
@@ -9,7 +9,6 @@ import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Burnable.sol";
 import "@openzeppelin/contracts/utils/Counters.sol";
 import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
-import "./interfaces/Metadata.sol";
 
 contract OnChain is ERC721Burnable, Pausable, Ownable, ReentrancyGuard {
     using MerkleProof for bytes32[];
@@ -18,12 +17,23 @@ contract OnChain is ERC721Burnable, Pausable, Ownable, ReentrancyGuard {
 
     // Enums
     enum MintState { WAITING, PRESALE, PUBLIC }
+
+    // Structs
+    struct attributes {
+        uint256 fusionCount;
+        uint256 generation;
+        string faction;
+        string name;
+        string description;
+    }
     
     // Variables
-    string public _base = 'https://titanbornes.herokuapp.com/images/';
+    string public _base = 'https://titanbornes.herokuapp.com/api/tokenURI/';
     bytes32 public _reapersRoot;
     bytes32 public _trickstersRoot;
     bool public _berserk = true;
+    uint256 public _generation = 0; // Will only be used if voted on by the DAO 
+    uint256 public _mintPrice = 0;
     bool public _characterized;
     uint256 public _maxSupply = 10000;
     address public immutable openSeaProxy = 0xF57B2c51dED3A29e6891aba85459d600256Cf317; // OpenSea Rinkeby Proxy for Gasless Listing
@@ -34,13 +44,13 @@ contract OnChain is ERC721Burnable, Pausable, Ownable, ReentrancyGuard {
     mapping(address => bool) _approvedProxies;
     mapping(address => bool) public _hasMinted;
     mapping(address => uint256[]) public _tokens;
-    mapping(uint256 => attributes.attrStruct) public _attributes;
+    mapping(uint256 => attributes) public _attributes;
 
     // Owner-only Functions
     constructor() ERC721("Semi-OnChain-Five", "SOC5") {}
 
-    function changeMintState(MintState mintState_) external onlyOwner {
-        _mintState = mintState_;
+    function changeMintState(MintState value) external onlyOwner {
+        _mintState = value;
     }
 
     function withdraw() external onlyOwner {
@@ -56,8 +66,12 @@ contract OnChain is ERC721Burnable, Pausable, Ownable, ReentrancyGuard {
         _unpause();
     }
 
-    function setBerserk(bool berserk_) external onlyOwner {
-        _berserk = berserk_;
+    function setBerserk(bool value) external onlyOwner {
+        _berserk = value;
+    }
+
+    function modifyGen(uint256 value) external onlyOwner {
+        _generation = value;
     }
 
     function characterize(uint256[] calldata indexes_, string[] calldata names_, string[] calldata descriptions_) external onlyOwner {
@@ -68,12 +82,12 @@ contract OnChain is ERC721Burnable, Pausable, Ownable, ReentrancyGuard {
         }
     }
 
-    function setMaxSupply(uint256 maxSupply_) external onlyOwner {
-        _maxSupply = maxSupply_;
+    function setMaxSupply(uint256 value) external onlyOwner {
+        _maxSupply = value;
     }
 
-    function flipProxyState(address proxyAddress_) external onlyOwner {
-        _approvedProxies[proxyAddress_] = !_approvedProxies[proxyAddress_];
+    function flipProxyState(address value) external onlyOwner {
+        _approvedProxies[value] = !_approvedProxies[value];
     }
 
     function setRootHashes(bytes32 reapers_, bytes32 tricksters_) external onlyOwner {
@@ -82,10 +96,11 @@ contract OnChain is ERC721Burnable, Pausable, Ownable, ReentrancyGuard {
     }
 
     // Public Functions
-    function safeMint(bytes32[] calldata proof_) public nonReentrant {
+    function safeMint(bytes32[] calldata proof_) public payable nonReentrant {
         require(_mintState != MintState.WAITING, 'MINTING DISABLED');
         require(!_hasMinted[msg.sender], 'ALREADY MINTED');
         require(balanceOf(msg.sender) == 0, 'ALREADY OWNS');
+        require(msg.value == _mintPrice, 'WRONG VALUE');
 
         uint256 tokenId = _tokenIdCounter.current();
         require(tokenId < _maxSupply, 'ALL MINTED');
@@ -105,6 +120,7 @@ contract OnChain is ERC721Burnable, Pausable, Ownable, ReentrancyGuard {
             _safeMint(msg.sender, tokenId);
         }
 
+        _attributes[tokenId].generation = _generation;
         _tokens[msg.sender].push(tokenId);
         _hasMinted[msg.sender] = true;
     }
@@ -183,8 +199,6 @@ contract OnChain is ERC721Burnable, Pausable, Ownable, ReentrancyGuard {
             return string(buffer);
         }
 }
-
-
 
 // Implemented for Gasless OpenSea listing
 contract OwnableDelegateProxy {}
