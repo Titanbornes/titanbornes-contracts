@@ -16,6 +16,7 @@
 		"@openzeppelin/contracts": "^4.4.2",
 		"base64-sol": "^1.1.0",
 		"chai": "^4.3.4",
+		"colors": "^1.4.0",
 		"dotenv": "^10.0.0",
 		"ethereum-waffle": "^3.4.0",
 		"ethers": "^5.4.6",

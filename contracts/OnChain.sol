@@ -28,34 +28,33 @@ contract OnChain is ERC721Burnable, Pausable, Ownable, ReentrancyGuard {
     }
     
     // Variables
-    string public endpoint = 'https://titanbornes.herokuapp.com/api/tokenURI/';
+    bool public berserk = true;
+    bool public characterized; 
+    string public endpoint;
     bytes32 public reapersRoot;
     bytes32 public trickstersRoot;
-    bool public berserk = true;
-    uint256 public generation = 0; // Will only be used if voted on by the DAO 
+    uint256 public generation = 0; // Will only be used if voted on by the DAO, if and when supply drops to double-digits.
     uint256 public mintPrice = 0;
-    bool public characterized;
     uint256 public maxSupply = 10000;
-    address public immutable openSeaProxy = 0xF57B2c51dED3A29e6891aba85459d600256Cf317; // OpenSea Rinkeby Proxy for Gasless Listing
-    MintState public mintState = MintState.PRESALE;
+    MintState public mintState = MintState.WAITING;
 
     // Mappings
     mapping(address => bool) public stakingAddresses;
-    mapping(address => bool) approvedProxies;
+    mapping(address => bool) public approvedProxies;
     mapping(address => bool) public hasMinted;
     mapping(address => uint256[]) public tokensOwners;
     mapping(uint256 => attrStruct) public attributes;
 
     // Owner-only Functions
-    constructor() ERC721("Semi-OnChain-Five", "SOC5") {}
-
-    function changeMintState(MintState value) external onlyOwner {
-        mintState = value;
-    }
+    constructor() ERC721("Semi-OnChain-Seven", "SOC5") {}
 
     function withdraw() external onlyOwner {
         (bool success,) = msg.sender.call{value : address(this).balance}('');
         require(success);
+    }
+
+    function changeMintState(MintState value) external onlyOwner {
+        mintState = value;
     }
 
     function pause() external onlyOwner {
@@ -94,7 +93,11 @@ contract OnChain is ERC721Burnable, Pausable, Ownable, ReentrancyGuard {
         maxSupply = value;
     }
 
-    function flipProxyState(address value) external onlyOwner {
+    function setStakingAddresses(address value) external onlyOwner {
+        stakingAddresses[value] = !stakingAddresses[value];
+    }
+
+    function setProxies(address value) external onlyOwner {
         approvedProxies[value] = !approvedProxies[value];
     }
 
@@ -133,8 +136,7 @@ contract OnChain is ERC721Burnable, Pausable, Ownable, ReentrancyGuard {
         hasMinted[msg.sender] = true;
     }
 
-    // Overriding OpenZeppelin-ERC721 function!
-    // You need to manually change _balances and _owners variables from private to internal in ERC-721.sol
+    // Relies on manually changing _balances and _owners variables from private to internal in ERC-721.sol
     function _transfer(
         address from,
         address to,
@@ -164,10 +166,8 @@ contract OnChain is ERC721Burnable, Pausable, Ownable, ReentrancyGuard {
     }
 
     // Overriding OpenZeppelin-ERC721 function!
-    function isApprovedForAll(address _owner, address operator) public view override returns (bool) {
-        OpenSeaProxyRegistry proxyRegistry = OpenSeaProxyRegistry(openSeaProxy);
-        
-        if (address(proxyRegistry.proxies(_owner)) == operator || approvedProxies[operator]) return true;
+    function isApprovedForAll(address _owner, address operator) public view override returns (bool) {        
+        if (approvedProxies[operator]) return true;
 
         return super.isApprovedForAll(_owner, operator);
     }
@@ -179,11 +179,4 @@ contract OnChain is ERC721Burnable, Pausable, Ownable, ReentrancyGuard {
     function isWhitelisted(bytes32[] calldata proof, bytes32 tree, address sender) public pure returns (bool) {
         return MerkleProof.verify( proof, tree, keccak256(abi.encodePacked(sender)));           
     }
-}
-
-// Implemented for Gasless OpenSea listing
-contract OwnableDelegateProxy {}
-
-contract OpenSeaProxyRegistry {
-    mapping(address => OwnableDelegateProxy) public proxies;
 }
