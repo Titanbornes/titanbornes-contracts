@@ -75,7 +75,11 @@ describe("OnChain", async () => {
 
       const tx = await contract.safeMint(
         reapersMerkleTree.getHexProof(
-          keccak256("0x3ada73b8bff6870071ac47484d10520cd41f2c23")
+          keccak256(
+            hre.network.config.chainId == 31337
+              ? owner.address
+              : "0x3ada73b8bff6870071ac47484d10520cd41f2c23"
+          )
         )
       );
 
