@@ -31,6 +31,7 @@ contract OnChain is ERC721Burnable, Pausable, Ownable, ReentrancyGuard {
     address public immutable OSProxy = 0xF57B2c51dED3A29e6891aba85459d600256Cf317; // OpenSea Rinkeby Proxy for Gasless Listing
 
     // Variables
+    address public royaltyReceiver;
     bool public berserk = true;
     bool public characterized; 
     string public endpoint = "https://titanbornes.herokuapp.com/api/tokenURI/";
@@ -39,6 +40,7 @@ contract OnChain is ERC721Burnable, Pausable, Ownable, ReentrancyGuard {
     uint256 public generation = 0; // Will only be used if voted on by the DAO, if and when supply drops to double-digits.
     uint256 public mintPrice = 0;
     uint256 public maxSupply = 10000;
+    uint256 public royaltyFactor = 50;     // Royalty amount is %5, see royaltyInfo function
     MintState public mintState = MintState.PRESALE;
 
     // Mappings
@@ -74,6 +76,11 @@ contract OnChain is ERC721Burnable, Pausable, Ownable, ReentrancyGuard {
 
     function setPrice(uint256 value) external onlyOwner {
         mintPrice = value;
+    }
+
+    function setRoyaltyInfo(uint256 factor, address receiver) external onlyOwner {
+        royaltyFactor = factor;
+        royaltyReceiver = receiver;
     }
 
     function flipBerserk() external onlyOwner {
@@ -179,6 +186,22 @@ contract OnChain is ERC721Burnable, Pausable, Ownable, ReentrancyGuard {
 
     function _baseURI() internal view virtual override returns (string memory) {
         return endpoint;
+    }
+
+    function royaltyInfo(uint256 tokenId, uint256 salePrice) external view returns (address, uint256) {
+        uint256 royaltyAmount = (salePrice * royaltyFactor) / 1000;
+        return (royaltyReceiver, royaltyAmount);
+    }   // https://eips.ethereum.org/EIPS/eip-2981
+
+    function supportsInterface(bytes4 interfaceId) public view virtual override(ERC721) returns (bool) {
+        bytes4 _ERC165_ = 0x01ffc9a7;
+        bytes4 _ERC721_ = 0x80ac58cd;
+        bytes4 _ERC2981_ = 0x2a55205a;
+        bytes4 _ERC721Metadata_ = 0x5b5e139f;
+        return interfaceId == _ERC165_ 
+            || interfaceId == _ERC721_
+            || interfaceId == _ERC2981_
+            || interfaceId == _ERC721Metadata_;
     }
 
     function isWhitelisted(bytes32[] calldata proof, bytes32 tree, address sender) public pure returns (bool) {
