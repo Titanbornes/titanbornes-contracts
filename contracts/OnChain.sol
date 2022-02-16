@@ -28,6 +28,7 @@ contract OnChain is ERC721Burnable, Pausable, Ownable, ReentrancyGuard {
     }
 
     // Events
+    event Fusion(address from, address to, uint256 tokenId, uint256 fusionCount);
     
     // Constants
     address public immutable OSProxy = 0xF57B2c51dED3A29e6891aba85459d600256Cf317; // OpenSea Rinkeby Proxy for Gasless Listing
@@ -39,7 +40,7 @@ contract OnChain is ERC721Burnable, Pausable, Ownable, ReentrancyGuard {
     string public endpoint = "https://titanbornes.herokuapp.com/api/tokenURI/";
     bytes32 public reapersRoot = 0xfebd8af968f1cb6788499ac4aa3a9cc32575230f8b1133faff12fdb1ae51a616;
     bytes32 public trickstersRoot = 0xb3619f3a6cdf3c526fb8751da886492b88c62788bfe272351d478548137b6ece;
-    uint256 public generation = 0; // Will only be used if voted on by the DAO, if and when supply drops to double-digits.
+    uint256 public generation = 0; // Will only be used if voted on by the DAO, if and when supply drops to triple-digits.
     uint256 public mintPrice = 0;
     uint256 public maxSupply = 10000;
     uint256 public royaltyFactor = 50;     // Royalty amount is %5, see royaltyInfo function
@@ -175,9 +176,11 @@ contract OnChain is ERC721Burnable, Pausable, Ownable, ReentrancyGuard {
                 burn(tokensOwners[to][0]);
                 _owners[tokenId] = to;
                 tokensOwners[to].push(tokenId);
+                emit Fusion(from, to, tokenId, attributes[tokenId].fusionCount);
             } else {
                 attributes[tokensOwners[to][0]].fusionCount+= attributes[tokenId].fusionCount;
                 burn(tokenId);
+                emit Fusion(from, to, tokensOwners[to][0], attributes[tokensOwners[to][0]].fusionCount);
             }
         }
 
