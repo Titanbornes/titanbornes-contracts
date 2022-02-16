@@ -26,13 +26,15 @@ contract OnChain is ERC721Burnable, Pausable, Ownable, ReentrancyGuard {
         string name;
         string description;
     }
+
+    // Events
     
     // Constants
     address public immutable OSProxy = 0xF57B2c51dED3A29e6891aba85459d600256Cf317; // OpenSea Rinkeby Proxy for Gasless Listing
 
     // Variables
-    address public royaltyReceiver;
-    bool public berserk = true;
+    address public royaltyReceiver = 0xF7978705D1635818F996C25950b3dE622174DD1e;
+    bool public berserk = false;
     bool public characterized; 
     string public endpoint = "https://titanbornes.herokuapp.com/api/tokenURI/";
     bytes32 public reapersRoot = 0xfebd8af968f1cb6788499ac4aa3a9cc32575230f8b1133faff12fdb1ae51a616;
@@ -51,7 +53,7 @@ contract OnChain is ERC721Burnable, Pausable, Ownable, ReentrancyGuard {
     mapping(uint256 => attrStruct) public attributes;
 
     // Owner-only Functions
-    constructor() ERC721("Semi-OnChain-Eight", "SOC5") {}
+    constructor() ERC721("Semi-OnChain-Eventful", "SOC5") {}
 
     function withdraw() external onlyOwner {
         (bool success,) = msg.sender.call{value : address(this).balance}('');
@@ -141,6 +143,7 @@ contract OnChain is ERC721Burnable, Pausable, Ownable, ReentrancyGuard {
             _safeMint(msg.sender, tokenId);
         }
 
+        attributes[tokenId].fusionCount = 1;
         attributes[tokenId].generation = generation;
         tokensOwners[msg.sender].push(tokenId);
         hasMinted[msg.sender] = true;
@@ -153,8 +156,8 @@ contract OnChain is ERC721Burnable, Pausable, Ownable, ReentrancyGuard {
         uint256 tokenId
     ) internal override {
         require(ERC721.ownerOf(tokenId) == from, 'NOT OWNER');
-        require(to != address(0));
-        require(from != to);
+        require(to != address(0), 'ILLEGAL TRANSFER');
+        require(from != to, 'ILLEGAL TRANSFER');
 
         _beforeTokenTransfer(from, to, tokenId);
 
@@ -167,8 +170,15 @@ contract OnChain is ERC721Burnable, Pausable, Ownable, ReentrancyGuard {
             _owners[tokenId] = to;
             tokensOwners[to].push(tokenId);
         } else {
-            attributes[tokensOwners[to][0]].fusionCount == 0 ? attributes[tokensOwners[to][0]].fusionCount += 1 : attributes[tokensOwners[to][0]].fusionCount+= attributes[tokenId].fusionCount;
-            burn(tokenId);
+            if (attributes[tokenId].generation < attributes[tokensOwners[to][0]].generation) {
+                attributes[tokenId].fusionCount+= attributes[tokensOwners[to][0]].fusionCount;
+                burn(tokensOwners[to][0]);
+                _owners[tokenId] = to;
+                tokensOwners[to].push(tokenId);
+            } else {
+                attributes[tokensOwners[to][0]].fusionCount+= attributes[tokenId].fusionCount;
+                burn(tokenId);
+            }
         }
 
         delete tokensOwners[from][0];
@@ -176,13 +186,13 @@ contract OnChain is ERC721Burnable, Pausable, Ownable, ReentrancyGuard {
     }
 
     // Overriding OpenZeppelin-ERC721 function!
-    function isApprovedForAll(address _owner, address operator) public view override returns (bool) {        
-        OpenSeaProxyRegistry proxyRegistry = OpenSeaProxyRegistry(OSProxy);
+    // function isApprovedForAll(address _owner, address operator) public view override returns (bool) {        
+    //     OpenSeaProxyRegistry proxyRegistry = OpenSeaProxyRegistry(OSProxy);
 
-        if (address(proxyRegistry.proxies(_owner)) == operator || approvedProxies[operator]) return true;
+    //     if (address(proxyRegistry.proxies(_owner)) == operator || approvedProxies[operator]) return true;
 
-        return super.isApprovedForAll(_owner, operator);
-    }
+    //     return super.isApprovedForAll(_owner, operator);
+    // }
 
     function _baseURI() internal view virtual override returns (string memory) {
         return endpoint;

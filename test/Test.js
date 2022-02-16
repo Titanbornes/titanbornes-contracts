@@ -71,15 +71,7 @@ describe("OnChain", async () => {
     it("Should flip berserk.", async function () {
       await contract.flipBerserk();
 
-      assert.equal(await contract.berserk(), false);
-    });
-  });
-
-  describe("modifyGen", () => {
-    it("Should modify generation.", async function () {
-      await contract.modifyGen(15);
-
-      assert.equal(await contract.generation(), 15);
+      assert.equal(await contract.berserk(), true);
     });
   });
 
@@ -127,17 +119,24 @@ describe("OnChain", async () => {
 
   describe("Mint", () => {
     it("Should mint.", async function () {
-      const [owner, second, third, fourth] = await hre.ethers.getSigners();
+      const [owner, second, third, fourth, fifth, sixth, seventh] =
+        await hre.ethers.getSigners();
 
-      await contract.safeMint(
-        reapersMerkleTree.getHexProof(
-          keccak256(
-            hre.network.config.chainId == 31337
-              ? owner.address
-              : "0x3ada73b8bff6870071ac47484d10520cd41f2c23"
+      const signers = [owner, second, third];
+
+      if (hre.network.config.chainId == 31337) {
+        for (const signer of signers) {
+          await contract
+            .connect(signer)
+            .safeMint(reapersMerkleTree.getHexProof(keccak256(signer.address)));
+        }
+      } else {
+        await contract.safeMint(
+          reapersMerkleTree.getHexProof(
+            keccak256("0x3ada73b8bff6870071ac47484d10520cd41f2c23")
           )
-        )
-      );
+        );
+      }
 
       // console.log(`tokenURI: ${await contract.tokenURI(0)}`.yellow);
     });
@@ -154,6 +153,78 @@ describe("OnChain", async () => {
 
       assert.equal(await contract.characterized(), true);
       // console.log(`${await contract.attributes(0)}`.blue);
+    });
+  });
+
+  describe("safeTransferFrom", () => {
+    it("Should safely transfer.", async function () {
+      const [owner, second, third, fourth, fifth, sixth, seventh] =
+        await hre.ethers.getSigners();
+
+      assert.equal(await contract.ownerOf(1), second.address);
+      assert.equal(await contract.balanceOf(owner.address), 1);
+      assert.equal(await contract.balanceOf(second.address), 1);
+
+      await contract
+        .connect(second)
+        ["safeTransferFrom(address,address,uint256)"](
+          second.address,
+          owner.address,
+          1
+        );
+
+      assert.equal(await contract.balanceOf(owner.address), 1);
+      assert.equal(await contract.balanceOf(second.address), 0);
+    });
+  });
+
+  describe("modifyGen", () => {
+    it("Should modify generation.", async function () {
+      await contract.modifyGen(1);
+
+      assert.equal(await contract.generation(), 1);
+    });
+  });
+
+  describe("MintSec", () => {
+    it("Should mint.", async function () {
+      const [owner, second, third, fourth, fifth, sixth, seventh] =
+        await hre.ethers.getSigners();
+
+      const signers = [fourth, fifth];
+
+      if (hre.network.config.chainId == 31337) {
+        for (const signer of signers) {
+          await contract
+            .connect(signer)
+            .safeMint(reapersMerkleTree.getHexProof(keccak256(signer.address)));
+        }
+      }
+      // console.log(`tokenURI: ${await contract.tokenURI(0)}`.yellow);
+    });
+
+    describe("safeTransferFromSec", () => {
+      it("Should safely transfer.", async function () {
+        const [owner, second, third, fourth, fifth, sixth, seventh] =
+          await hre.ethers.getSigners();
+
+        assert.equal(await contract.tokensOwners(fourth.address, 0), 3);
+        assert.equal(await contract.ownerOf(3), fourth.address);
+        assert.equal(await contract.balanceOf(fourth.address), 1);
+        assert.equal(await contract.balanceOf(owner.address), 1);
+
+        await contract
+          .connect(fourth)
+          ["safeTransferFrom(address,address,uint256)"](
+            fourth.address,
+            owner.address,
+            3
+          );
+
+        assert.equal(await contract.tokensOwners(fourth.address, 0), 0);
+        assert.equal(await contract.balanceOf(owner.address), 1);
+        assert.equal(await contract.balanceOf(fourth.address), 0);
+      });
     });
   });
 });
