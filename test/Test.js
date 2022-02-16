@@ -34,7 +34,7 @@ describe("OnChain", async () => {
       contract = await contractFactory.deploy();
       await contract.deployed();
 
-      // console.log(`Contract address is: ${contract.address}`.blue);
+      console.log(`Contract address is: ${contract.address}`.blue);
     });
   });
 
@@ -61,9 +61,7 @@ describe("OnChain", async () => {
 
   describe("setPrice", () => {
     it("Should change price.", async function () {
-      await contract.setPrice(0);
-
-      assert.equal(await contract.mintPrice(), 0);
+      await contract.setPrice(await ethers.utils.parseEther("1"));
     });
   });
 
@@ -128,7 +126,12 @@ describe("OnChain", async () => {
         for (const signer of signers) {
           await contract
             .connect(signer)
-            .safeMint(reapersMerkleTree.getHexProof(keccak256(signer.address)));
+            .safeMint(
+              reapersMerkleTree.getHexProof(keccak256(signer.address)),
+              {
+                value: ethers.utils.parseEther("1"),
+              }
+            );
         }
       } else {
         await contract.safeMint(
@@ -197,7 +200,12 @@ describe("OnChain", async () => {
         for (const signer of signers) {
           await contract
             .connect(signer)
-            .safeMint(reapersMerkleTree.getHexProof(keccak256(signer.address)));
+            .safeMint(
+              reapersMerkleTree.getHexProof(keccak256(signer.address)),
+              {
+                value: ethers.utils.parseEther("1"),
+              }
+            );
         }
       }
       // console.log(`tokenURI: ${await contract.tokenURI(0)}`.yellow);
@@ -224,6 +232,27 @@ describe("OnChain", async () => {
         assert.equal(await contract.tokensOwners(fourth.address, 0), 0);
         assert.equal(await contract.balanceOf(owner.address), 1);
         assert.equal(await contract.balanceOf(fourth.address), 0);
+      });
+    });
+
+    describe("Withdraw", () => {
+      it("Should deploy.", async function () {
+        const [owner, second, third, fourth, fifth, sixth, seventh] =
+          await hre.ethers.getSigners();
+
+        const provider = ethers.provider;
+
+        console.log(
+          `Before withdraw: ${await provider.getBalance(contract.address)}`.red
+            .inverse
+        );
+
+        await contract.withdraw();
+
+        console.log(
+          `After withdraw: ${await provider.getBalance(contract.address)}`.red
+            .inverse
+        );
       });
     });
   });
