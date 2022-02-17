@@ -10,7 +10,7 @@ import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Burnable.sol";
 import "@openzeppelin/contracts/utils/Counters.sol";
 import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 
-contract OnChain is ERC721Burnable, Pausable, Ownable, ReentrancyGuard {
+contract Titanbornes is ERC721Burnable, Pausable, Ownable, ReentrancyGuard {
     using MerkleProof for bytes32[];
     using Counters for Counters.Counter;
     Counters.Counter private _tokenIdCounter;
@@ -28,18 +28,20 @@ contract OnChain is ERC721Burnable, Pausable, Ownable, ReentrancyGuard {
     }
 
     // Events
-    event Fusion(address from, address to, uint256 tokenId, uint256 fusionCount);
+    event Fusion(uint256 tokenId, uint256 fusionCount);
+    event Mint(address to, uint256 tokenId, uint256 generation, string faction);
+    event Characterize(uint256 tokenId, string name, string description);
     
     // Constants
     address public immutable OSProxy = 0xF57B2c51dED3A29e6891aba85459d600256Cf317; // OpenSea Rinkeby Proxy for Gasless Listing
 
     // Variables
     address public royaltyReceiver = 0xF7978705D1635818F996C25950b3dE622174DD1e;
-    bool public berserk = false;
+    bool public fuse = true; // Controls the fusion logic flow
     bool public characterized; 
-    string public endpoint = "https://titanbornes.herokuapp.com/api/tokenURI/";
-    bytes32 public reapersRoot = 0xfebd8af968f1cb6788499ac4aa3a9cc32575230f8b1133faff12fdb1ae51a616;
-    bytes32 public trickstersRoot = 0xb3619f3a6cdf3c526fb8751da886492b88c62788bfe272351d478548137b6ece;
+    string public endpoint = "https://titanbornes.herokuapp.com/api/metadata/";
+    bytes32 public reapersRoot = 0xfdd8a991eaa70924a5426f007fb2c9394dbe2eacd4a818a60803652a456f0861; // Merkle Tree Root for the Reapers Faction Whitelist
+    bytes32 public trickstersRoot = 0x6dc9c21acc3f001441ba4427a8aa0ba5244b5873d0a59acd62e9f221fd05c80e; // Merkle Tree Root for the Tricksters Faction Whitelist
     uint256 public generation = 0; // Will only be used if voted on by the DAO, if and when supply drops to triple-digits.
     uint256 public mintPrice = 0;
     uint256 public maxSupply = 10000;
@@ -54,7 +56,7 @@ contract OnChain is ERC721Burnable, Pausable, Ownable, ReentrancyGuard {
     mapping(uint256 => attrStruct) public attributes;
 
     // Owner-only Functions
-    constructor() ERC721("Semi-OnChain-Eventful", "SOC5") {}
+    constructor() ERC721("Fusion-Eventful-Two", "FE") {}
 
     function withdraw() external onlyOwner {
         (bool success,) = msg.sender.call{value : address(this).balance}('');
@@ -86,8 +88,8 @@ contract OnChain is ERC721Burnable, Pausable, Ownable, ReentrancyGuard {
         royaltyReceiver = receiver;
     }
 
-    function flipBerserk() external onlyOwner {
-        berserk = !berserk;
+    function flipFuse() external onlyOwner {
+        fuse = !fuse;
     }
 
     function modifyGen(uint256 value) external onlyOwner {
@@ -99,6 +101,7 @@ contract OnChain is ERC721Burnable, Pausable, Ownable, ReentrancyGuard {
         for (uint256 i = 0; i < indexes.length; i++) {
             attributes[indexes[i]].name = names[i];
             attributes[indexes[i]].description = descriptions[i];
+            emit Characterize(indexes[i], names[i], descriptions[i]);
         }
     }
 
@@ -148,6 +151,7 @@ contract OnChain is ERC721Burnable, Pausable, Ownable, ReentrancyGuard {
         attributes[tokenId].generation = generation;
         tokensOwners[msg.sender].push(tokenId);
         hasMinted[msg.sender] = true;
+        emit Mint(msg.sender, tokenId, generation, attributes[tokenId].faction);
     }
 
     // Relies on manually changing _balances and _owners variables from private to internal in ERC-721.sol
@@ -162,7 +166,7 @@ contract OnChain is ERC721Burnable, Pausable, Ownable, ReentrancyGuard {
 
         _beforeTokenTransfer(from, to, tokenId);
 
-        if(balanceOf(to) == 0 || stakingAddresses[to] || !berserk) { // Transaction proceeds as normal
+        if(balanceOf(to) == 0 || stakingAddresses[to] || !fuse) { // Transaction proceeds as normal
             // Clear approvals from the previous owner
             _approve(address(0), tokenId);
 
@@ -170,21 +174,31 @@ contract OnChain is ERC721Burnable, Pausable, Ownable, ReentrancyGuard {
             _balances[to] += 1;
             _owners[tokenId] = to;
             tokensOwners[to].push(tokenId);
-        } else {
+        } else { // Fusion
             if (attributes[tokenId].generation < attributes[tokensOwners[to][0]].generation) {
-                attributes[tokenId].fusionCount+= attributes[tokensOwners[to][0]].fusionCount;
+                attributes[tokenId].fusionCount += attributes[tokensOwners[to][0]].fusionCount;
                 burn(tokensOwners[to][0]);
+                delete tokensOwners[to][0];
                 _owners[tokenId] = to;
                 tokensOwners[to].push(tokenId);
-                emit Fusion(from, to, tokenId, attributes[tokenId].fusionCount);
+                emit Fusion(tokenId, attributes[tokenId].fusionCount);
             } else {
-                attributes[tokensOwners[to][0]].fusionCount+= attributes[tokenId].fusionCount;
+                attributes[tokensOwners[to][0]].fusionCount += attributes[tokenId].fusionCount;
                 burn(tokenId);
-                emit Fusion(from, to, tokensOwners[to][0], attributes[tokensOwners[to][0]].fusionCount);
+                emit Fusion(tokensOwners[to][0], attributes[tokensOwners[to][0]].fusionCount);
             }
+
         }
 
-        delete tokensOwners[from][0];
+        if (stakingAddresses[from] || !fuse) {
+            for (uint256 i = 0; i < tokensOwners[from].length; i++) {
+                if (tokensOwners[from][i] == tokenId) {
+                    delete tokensOwners[from][i];
+                }
+            }
+        } else {
+            delete tokensOwners[from][0];
+        }
         emit Transfer(from, to, tokenId);
     }
 
@@ -201,7 +215,7 @@ contract OnChain is ERC721Burnable, Pausable, Ownable, ReentrancyGuard {
         return endpoint;
     }
 
-    function royaltyInfo(uint256 tokenId, uint256 salePrice) external view returns (address, uint256) {
+    function royaltyInfo(uint256, uint256 salePrice) external view returns (address, uint256) {
         uint256 royaltyAmount = (salePrice * royaltyFactor) / 1000;
         return (royaltyReceiver, royaltyAmount);
     }   // https://eips.ethereum.org/EIPS/eip-2981

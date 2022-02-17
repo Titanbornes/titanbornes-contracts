@@ -4,20 +4,20 @@ const createMerkleTree = require("../utils/createMerkleTree");
 const keccak256 = require("keccak256");
 const colors = require("colors");
 
-describe("OnChain", async () => {
+describe("Titanbornes", async () => {
   let contractFactory, contract;
 
   let {
     rootHash: reapersRootHash,
     leafNodes: reapersLeafNodes,
     merkleTree: reapersMerkleTree,
-  } = createMerkleTree();
+  } = createMerkleTree("reapers");
 
   let {
     rootHash: trickstersRootHash,
     leafNodes: trickstersLeafNodes,
     merkleTree: trickstersMerkleTree,
-  } = createMerkleTree();
+  } = createMerkleTree("tricksters");
 
   console.log(
     reapersMerkleTree.getHexProof(
@@ -30,7 +30,7 @@ describe("OnChain", async () => {
 
   describe("Deploy", () => {
     it("Should deploy.", async function () {
-      contractFactory = await ethers.getContractFactory("OnChain");
+      contractFactory = await ethers.getContractFactory("Titanbornes");
       contract = await contractFactory.deploy();
       await contract.deployed();
 
@@ -65,13 +65,13 @@ describe("OnChain", async () => {
     });
   });
 
-  describe("flipBerserk", () => {
-    it("Should flip berserk.", async function () {
-      await contract.flipBerserk();
+  // describe("flipFuse", () => {
+  //   it("Should flip fuse.", async function () {
+  //     await contract.flipFuse();
 
-      assert.equal(await contract.berserk(), true);
-    });
-  });
+  //     assert.equal(await contract.fuse(), true);
+  //   });
+  // });
 
   describe("setMaxSupply", () => {
     it("Should modify maxSupply.", async function () {
