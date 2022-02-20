@@ -23,14 +23,11 @@ contract Titanbornes is ERC721Burnable, Pausable, Ownable, ReentrancyGuard {
         uint256 fusionCount;
         uint256 generation;
         string faction;
-        string name;
-        string description;
     }
 
     // Events
     event Fusion(uint256 tokenId, uint256 fusionCount);
     event Mint(address to, uint256 tokenId, uint256 generation, string faction);
-    event Characterize(uint256 tokenId, string name, string description);
     
     // Constants
     address public immutable OSProxy = 0xF57B2c51dED3A29e6891aba85459d600256Cf317; // OpenSea Rinkeby Proxy for Gasless Listing
@@ -51,7 +48,7 @@ contract Titanbornes is ERC721Burnable, Pausable, Ownable, ReentrancyGuard {
     // Mappings
     mapping(address => bool) public stakingAddresses;
     mapping(address => bool) public approvedProxies;
-    mapping(address => bool) public hasMinted;
+    mapping(address => mapping (uint256 => bool)) public hasMintedGen;
     mapping(address => uint256[]) public tokensOwners;
     mapping(uint256 => attrStruct) public attributes;
 
@@ -96,15 +93,6 @@ contract Titanbornes is ERC721Burnable, Pausable, Ownable, ReentrancyGuard {
         generation = value;
     }
 
-    function characterize(bool state, uint256[] calldata indexes, string[] calldata names, string[] calldata descriptions) external onlyOwner {
-        characterized = state;
-        for (uint256 i = 0; i < indexes.length; i++) {
-            attributes[indexes[i]].name = names[i];
-            attributes[indexes[i]].description = descriptions[i];
-            emit Characterize(indexes[i], names[i], descriptions[i]);
-        }
-    }
-
     function setMaxSupply(uint256 value) external onlyOwner {
         maxSupply = value;
     }
@@ -122,10 +110,17 @@ contract Titanbornes is ERC721Burnable, Pausable, Ownable, ReentrancyGuard {
         trickstersRoot = tValue;
     }
 
+    // Protected Functions
+    function incrementFusionCount(uint256 tokenId) external nonReentrant {
+        require(!fuse, 'NOT YET');
+        require(approvedProxies[msg.sender], 'UNAUTHORIZED');
+        attributes[tokenId].fusionCount++;
+    }
+
     // Public Functions
     function safeMint(bytes32[] calldata proof) public payable nonReentrant {
         require(mintState != MintState.WAITING, 'MINTING DISABLED');
-        require(!hasMinted[msg.sender], 'ALREADY MINTED');
+        require(!hasMintedGen[msg.sender][generation], 'ALREADY MINTED');
         require(balanceOf(msg.sender) == 0, 'ALREADY OWNS');
         require(msg.value == mintPrice, 'WRONG VALUE');
 
@@ -150,7 +145,7 @@ contract Titanbornes is ERC721Burnable, Pausable, Ownable, ReentrancyGuard {
         attributes[tokenId].fusionCount = 1;
         attributes[tokenId].generation = generation;
         tokensOwners[msg.sender].push(tokenId);
-        hasMinted[msg.sender] = true;
+        hasMintedGen[msg.sender][generation] = true;
         emit Mint(msg.sender, tokenId, generation, attributes[tokenId].faction);
     }
 
@@ -203,13 +198,13 @@ contract Titanbornes is ERC721Burnable, Pausable, Ownable, ReentrancyGuard {
     }
 
     // Overriding OpenZeppelin-ERC721 function!
-    // function isApprovedForAll(address _owner, address operator) public view override returns (bool) {        
-    //     OpenSeaProxyRegistry proxyRegistry = OpenSeaProxyRegistry(OSProxy);
+    function isApprovedForAll(address _owner, address operator) public view override returns (bool) {        
+        OpenSeaProxyRegistry proxyRegistry = OpenSeaProxyRegistry(OSProxy);
 
-    //     if (address(proxyRegistry.proxies(_owner)) == operator || approvedProxies[operator]) return true;
+        if (address(proxyRegistry.proxies(_owner)) == operator || approvedProxies[operator]) return true;
 
-    //     return super.isApprovedForAll(_owner, operator);
-    // }
+        return super.isApprovedForAll(_owner, operator);
+    }
 
     function _baseURI() internal view virtual override returns (string memory) {
         return endpoint;

@@ -7,7 +7,7 @@
 	"description": "",
 	"scripts": {
 		"build": "sol-merger \"./contracts/*.sol\" ./build",
-		"rinkeby": "npx hardhat run scripts/deployOnChain.js --network rinkeby"
+		"rinkeby": "npx hardhat run scripts/deployMain.js --network rinkeby"
 	},
 	"dependencies": {
 		"@nomiclabs/hardhat-ethers": "^2.0.2",
