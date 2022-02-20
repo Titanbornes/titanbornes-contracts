@@ -6,11 +6,10 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/security/Pausable.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
-import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Burnable.sol";
 import "@openzeppelin/contracts/utils/Counters.sol";
 import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 
-contract Titanbornes is ERC721Burnable, Pausable, Ownable, ReentrancyGuard {
+contract Titanbornes is ERC721, Pausable, Ownable, ReentrancyGuard {
     using MerkleProof for bytes32[];
     using Counters for Counters.Counter;
     Counters.Counter private _tokenIdCounter;
@@ -19,7 +18,7 @@ contract Titanbornes is ERC721Burnable, Pausable, Ownable, ReentrancyGuard {
     enum MintState { WAITING, PRESALE, PUBLIC }
 
     // Structs
-    struct attrStruct {
+    struct attributesStruct {
         uint256 fusionCount;
         uint256 generation;
         string faction;
@@ -50,17 +49,16 @@ contract Titanbornes is ERC721Burnable, Pausable, Ownable, ReentrancyGuard {
     mapping(address => bool) public approvedProxies;
     mapping(address => mapping (uint256 => bool)) public hasMintedGen;
     mapping(address => uint256[]) public tokensOwners;
-    mapping(uint256 => attrStruct) public attributes;
+    mapping(uint256 => attributesStruct) public attributes;
 
     // Owner-only Functions
     constructor() ERC721("Fusion-Eventful-Two", "FE") {}
 
     function withdraw() external onlyOwner {
-        (bool success,) = msg.sender.call{value : address(this).balance}('');
-        require(success);
+        payable(msg.sender).transfer(address(this).balance);
     }
 
-    function changeMintState(MintState value) external onlyOwner {
+    function setMintState(MintState value) external onlyOwner {
         mintState = value;
     }
 
@@ -112,9 +110,10 @@ contract Titanbornes is ERC721Burnable, Pausable, Ownable, ReentrancyGuard {
 
     // Protected Functions
     function incrementFusionCount(uint256 tokenId) external nonReentrant {
-        require(!fuse, 'NOT YET');
         require(approvedProxies[msg.sender], 'UNAUTHORIZED');
+        require(!fuse, 'NOT YET');
         attributes[tokenId].fusionCount++;
+        emit Fusion(tokenId, attributes[tokenId].fusionCount);
     }
 
     // Public Functions
@@ -172,14 +171,14 @@ contract Titanbornes is ERC721Burnable, Pausable, Ownable, ReentrancyGuard {
         } else { // Fusion
             if (attributes[tokenId].generation < attributes[tokensOwners[to][0]].generation) {
                 attributes[tokenId].fusionCount += attributes[tokensOwners[to][0]].fusionCount;
-                burn(tokensOwners[to][0]);
+                _burn(tokensOwners[to][0]);
                 delete tokensOwners[to][0];
                 _owners[tokenId] = to;
                 tokensOwners[to].push(tokenId);
                 emit Fusion(tokenId, attributes[tokenId].fusionCount);
             } else {
                 attributes[tokensOwners[to][0]].fusionCount += attributes[tokenId].fusionCount;
-                burn(tokenId);
+                _burn(tokenId);
                 emit Fusion(tokensOwners[to][0], attributes[tokensOwners[to][0]].fusionCount);
             }
 
@@ -198,13 +197,13 @@ contract Titanbornes is ERC721Burnable, Pausable, Ownable, ReentrancyGuard {
     }
 
     // Overriding OpenZeppelin-ERC721 function!
-    function isApprovedForAll(address _owner, address operator) public view override returns (bool) {        
-        OpenSeaProxyRegistry proxyRegistry = OpenSeaProxyRegistry(OSProxy);
+    // function isApprovedForAll(address _owner, address operator) public view override returns (bool) {        
+    //     OpenSeaProxyRegistry proxyRegistry = OpenSeaProxyRegistry(OSProxy);
 
-        if (address(proxyRegistry.proxies(_owner)) == operator || approvedProxies[operator]) return true;
+    //     if (address(proxyRegistry.proxies(_owner)) == operator || approvedProxies[operator]) return true;
 
-        return super.isApprovedForAll(_owner, operator);
-    }
+    //     return super.isApprovedForAll(_owner, operator);
+    // }
 
     function _baseURI() internal view virtual override returns (string memory) {
         return endpoint;

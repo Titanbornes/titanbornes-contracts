@@ -38,9 +38,9 @@ describe("Titanbornes", async () => {
     });
   });
 
-  describe("changeMintState", () => {
+  describe("setMintState", () => {
     it("Should change mint state.", async function () {
-      await contract.changeMintState(1);
+      await contract.setMintState(1);
 
       assert.equal(await contract.mintState(), 1);
     });
@@ -145,20 +145,6 @@ describe("Titanbornes", async () => {
     });
   });
 
-  describe("characterize", () => {
-    it("Should change name and description attributes.", async function () {
-      await contract.characterize(
-        true,
-        [0],
-        ["Warhammmer"],
-        ["This is the Warhammer Titanborne."]
-      );
-
-      assert.equal(await contract.characterized(), true);
-      // console.log(`${await contract.attributes(0)}`.blue);
-    });
-  });
-
   describe("safeTransferFrom", () => {
     it("Should safely transfer.", async function () {
       const [owner, second, third, fourth, fifth, sixth, seventh] =
@@ -236,23 +222,17 @@ describe("Titanbornes", async () => {
     });
 
     describe("Withdraw", () => {
-      it("Should deploy.", async function () {
+      it("Should withdraw.", async function () {
         const [owner, second, third, fourth, fifth, sixth, seventh] =
           await hre.ethers.getSigners();
 
         const provider = ethers.provider;
 
-        console.log(
-          `Before withdraw: ${await provider.getBalance(contract.address)}`.red
-            .inverse
-        );
+        assert.isAbove(await provider.getBalance(contract.address), 0);
 
         await contract.withdraw();
 
-        console.log(
-          `After withdraw: ${await provider.getBalance(contract.address)}`.red
-            .inverse
-        );
+        assert.equal(await provider.getBalance(contract.address), 0);
       });
     });
   });
