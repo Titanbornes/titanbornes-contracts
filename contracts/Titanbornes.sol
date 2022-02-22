@@ -28,9 +28,6 @@ contract Titanbornes is ERC721, Pausable, Ownable, ReentrancyGuard {
     event Fusion(uint256 tokenId, uint256 fusionCount);
     event Mint(address to, uint256 tokenId, uint256 generation, string faction);
     
-    // Constants
-    address public immutable OSProxy = 0xF57B2c51dED3A29e6891aba85459d600256Cf317; // OpenSea Rinkeby Proxy for Gasless Listing
-
     // Variables
     address public royaltyReceiver = 0xF7978705D1635818F996C25950b3dE622174DD1e;
     bool public fuse = true; // Controls the fusion logic flow
@@ -196,15 +193,6 @@ contract Titanbornes is ERC721, Pausable, Ownable, ReentrancyGuard {
         emit Transfer(from, to, tokenId);
     }
 
-    // Overriding OpenZeppelin-ERC721 function!
-    // function isApprovedForAll(address _owner, address operator) public view override returns (bool) {        
-    //     OpenSeaProxyRegistry proxyRegistry = OpenSeaProxyRegistry(OSProxy);
-
-    //     if (address(proxyRegistry.proxies(_owner)) == operator || approvedProxies[operator]) return true;
-
-    //     return super.isApprovedForAll(_owner, operator);
-    // }
-
     function _baseURI() internal view virtual override returns (string memory) {
         return endpoint;
     }
@@ -228,11 +216,4 @@ contract Titanbornes is ERC721, Pausable, Ownable, ReentrancyGuard {
     function isWhitelisted(bytes32[] calldata proof, bytes32 tree, address sender) public pure returns (bool) {
         return MerkleProof.verify( proof, tree, keccak256(abi.encodePacked(sender)));           
     }
-}
-
-// Implemented for Gasless OpenSea listing
-contract OwnableDelegateProxy {}
-
-contract OpenSeaProxyRegistry {
-    mapping(address => OwnableDelegateProxy) public proxies;
 }

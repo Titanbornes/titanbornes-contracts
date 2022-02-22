@@ -37,6 +37,6 @@ module.exports = {
   gasReporter: {
     enabled: true,
     coinmarketcap: process.env.CMC,
-    currency: "ETH",
+    currency: "USD",
   },
 };
