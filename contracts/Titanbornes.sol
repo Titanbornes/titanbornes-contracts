@@ -33,10 +33,13 @@ contract Titanbornes is ERC721, Pausable, Ownable, ReentrancyGuard {
     bool public fuse = true; // Controls the fusion logic flow
     bool public characterized; 
     string public endpoint = "https://titanbornes.herokuapp.com/api/metadata/";
-    bytes32 public reapersRoot = 0xfdd8a991eaa70924a5426f007fb2c9394dbe2eacd4a818a60803652a456f0861; // Merkle Tree Root for the Reapers Faction Whitelist
-    bytes32 public trickstersRoot = 0x6dc9c21acc3f001441ba4427a8aa0ba5244b5873d0a59acd62e9f221fd05c80e; // Merkle Tree Root for the Tricksters Faction Whitelist
+    bytes32 public reapersRoot = 0xfdd8a991eaa70924a5426f007fb2c9394dbe2eacd4a818a60803652a456f0861;
+    bytes32 public reapersRootTop;
+    bytes32 public trickstersRoot = 0x6dc9c21acc3f001441ba4427a8aa0ba5244b5873d0a59acd62e9f221fd05c80e;
+    bytes32 public trickstersRootTop;
     uint256 public generation = 0; // Will only be used if voted on by the DAO, if and when supply drops to triple-digits.
-    uint256 public mintPrice = 0;
+    uint256 public mintPrice = 80000000000000000;
+    uint256 public mintPriceTop = 0;
     uint256 public maxSupply = 10000;
     uint256 public royaltyFactor = 50;     // Royalty amount is %5, see royaltyInfo function
     MintState public mintState = MintState.PRESALE;
@@ -100,9 +103,11 @@ contract Titanbornes is ERC721, Pausable, Ownable, ReentrancyGuard {
         approvedProxies[value] = !approvedProxies[value];
     }
 
-    function setRootHashes(bytes32 rValue, bytes32 tValue) external onlyOwner {
+    function setRootHashes(bytes32 rValue, bytes32 rfValue, bytes32 tValue, bytes32 tfValue) external onlyOwner {
         reapersRoot = rValue;
+        reapersRootTop = rfValue;
         trickstersRoot = tValue;
+        trickstersRootTop = tfValue;
     }
 
     // Protected Functions
@@ -114,35 +119,37 @@ contract Titanbornes is ERC721, Pausable, Ownable, ReentrancyGuard {
     }
 
     // Public Functions
-    function safeMint(bytes32[] calldata proof) public payable nonReentrant {
-        require(mintState != MintState.WAITING, 'MINTING DISABLED');
-        require(!hasMintedGen[msg.sender][generation], 'ALREADY MINTED');
-        require(balanceOf(msg.sender) == 0, 'ALREADY OWNS');
-        require(msg.value == mintPrice, 'WRONG VALUE');
+    function presaleMint(bytes32[] calldata proof) public payable nonReentrant {
+        require(mintState == MintState.PRESALE, 'WRONG MINTSTATE');
+        require(verifyMerkle(proof, reapersRoot, msg.sender) || verifyMerkle(proof, trickstersRoot, msg.sender), "NOT WHITELISTED");
+        uint256 tokenId = beforeMint();
 
-        uint256 tokenId = _tokenIdCounter.current();
-        require(tokenId < maxSupply, 'ALL MINTED');
-        
-        _tokenIdCounter.increment();
-
-        if(mintState == MintState.PRESALE) {
-            require(isWhitelisted(proof, reapersRoot, msg.sender) || isWhitelisted(proof, trickstersRoot, msg.sender), "NOT WHITELISTED");
-            if (isWhitelisted(proof, reapersRoot, msg.sender)) {
-                attributes[tokenId].faction = 'Reapers';
-            } else {
-                attributes[tokenId].faction = 'Tricksters';
-            }
-            _safeMint(msg.sender, tokenId);
+        if (verifyMerkle(proof, reapersRoot, msg.sender)) {
+            attributes[tokenId].faction = 'Reapers';
         } else {
-            attributes[tokenId].faction = uint(keccak256(abi.encodePacked(msg.sender))) % 2 == 0 ? 'Reapers' : 'Tricksters';
-            _safeMint(msg.sender, tokenId);
+            attributes[tokenId].faction = 'Tricksters';
+        }
+        
+        if (verifyMerkle(proof, reapersRootTop, msg.sender) || verifyMerkle(proof, trickstersRootTop, msg.sender)) {
+            require(msg.value == mintPriceTop, 'WRONG VALUE');
+        } else {
+            require(msg.value == mintPrice, 'WRONG VALUE');
         }
 
-        attributes[tokenId].fusionCount = 1;
-        attributes[tokenId].generation = generation;
-        tokensOwners[msg.sender].push(tokenId);
-        hasMintedGen[msg.sender][generation] = true;
-        emit Mint(msg.sender, tokenId, generation, attributes[tokenId].faction);
+        _safeMint(msg.sender, tokenId);
+        afterMint(tokenId);
+    }
+
+    function publicMint() public payable nonReentrant {
+        require(mintState == MintState.PUBLIC, 'WRONG MINTSTATE');
+        uint256 tokenId = beforeMint();
+
+        require(msg.value == mintPrice, 'WRONG VALUE');
+
+        attributes[tokenId].faction = uint(keccak256(abi.encodePacked(msg.sender))) % 2 == 0 ? 'Reapers' : 'Tricksters';
+
+        _safeMint(msg.sender, tokenId);
+        afterMint(tokenId);
     }
 
     // Relies on manually changing _balances and _owners variables from private to internal in ERC-721.sol
@@ -178,7 +185,6 @@ contract Titanbornes is ERC721, Pausable, Ownable, ReentrancyGuard {
                 _burn(tokenId);
                 emit Fusion(tokensOwners[to][0], attributes[tokensOwners[to][0]].fusionCount);
             }
-
         }
 
         if (stakingAddresses[from] || !fuse) {
@@ -213,7 +219,26 @@ contract Titanbornes is ERC721, Pausable, Ownable, ReentrancyGuard {
             || interfaceId == _ERC721Metadata_;
     }
 
-    function isWhitelisted(bytes32[] calldata proof, bytes32 tree, address sender) public pure returns (bool) {
+    function beforeMint() internal returns (uint256) {
+        require(!hasMintedGen[msg.sender][generation], 'ALREADY MINTED');
+        require(balanceOf(msg.sender) == 0, 'ALREADY OWNS');
+
+        uint256 tokenId = _tokenIdCounter.current();
+        require(tokenId < maxSupply, 'ALL MINTED');
+        
+        _tokenIdCounter.increment();
+        return tokenId;
+    }
+
+    function afterMint(uint256 tokenId) internal {
+        attributes[tokenId].fusionCount = 1;
+        attributes[tokenId].generation = generation;
+        tokensOwners[msg.sender].push(tokenId);
+        hasMintedGen[msg.sender][generation] = true;
+        emit Mint(msg.sender, tokenId, generation, attributes[tokenId].faction);
+    }
+
+    function verifyMerkle(bytes32[] calldata proof, bytes32 tree, address sender) public pure returns (bool) {
         return MerkleProof.verify( proof, tree, keccak256(abi.encodePacked(sender)));           
     }
 }
