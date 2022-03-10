@@ -34,9 +34,8 @@ contract Titanbornes is ERC721, Pausable, Ownable, ReentrancyGuard {
     bool public characterized; 
     string public endpoint = "https://titanbornes.herokuapp.com/api/metadata/";
     bytes32 public reapersRoot = 0xfdd8a991eaa70924a5426f007fb2c9394dbe2eacd4a818a60803652a456f0861;
-    bytes32 public reapersRootTop;
     bytes32 public trickstersRoot = 0x6dc9c21acc3f001441ba4427a8aa0ba5244b5873d0a59acd62e9f221fd05c80e;
-    bytes32 public trickstersRootTop;
+    bytes32 public topRoot;
     uint256 public generation = 0; // Will only be used if voted on by the DAO, if and when supply drops to triple-digits.
     uint256 public mintPrice = 80000000000000000;
     uint256 public mintPriceTop = 0;
@@ -74,8 +73,9 @@ contract Titanbornes is ERC721, Pausable, Ownable, ReentrancyGuard {
         endpoint = value;
     }
 
-    function setPrice(uint256 value) external onlyOwner {
-        mintPrice = value;
+    function setPrice(uint256 p, uint256 t) external onlyOwner {
+        mintPrice = p;
+        mintPriceTop = t;
     }
 
     function setRoyaltyInfo(uint256 factor, address receiver) external onlyOwner {
@@ -103,11 +103,10 @@ contract Titanbornes is ERC721, Pausable, Ownable, ReentrancyGuard {
         approvedProxies[value] = !approvedProxies[value];
     }
 
-    function setRootHashes(bytes32 rValue, bytes32 rfValue, bytes32 tValue, bytes32 tfValue) external onlyOwner {
-        reapersRoot = rValue;
-        reapersRootTop = rfValue;
-        trickstersRoot = tValue;
-        trickstersRootTop = tfValue;
+    function setRootHashes(bytes32 r, bytes32 t, bytes32 top) external onlyOwner {
+        reapersRoot = r;
+        trickstersRoot = t;
+        topRoot = top;
     }
 
     // Protected Functions
@@ -119,18 +118,18 @@ contract Titanbornes is ERC721, Pausable, Ownable, ReentrancyGuard {
     }
 
     // Public Functions
-    function presaleMint(bytes32[] calldata proof) public payable nonReentrant {
+    function presaleMint(bytes32[] calldata p1, bytes32[] calldata p2) public payable nonReentrant {
         require(mintState == MintState.PRESALE, 'WRONG MINTSTATE');
-        require(verifyMerkle(proof, reapersRoot, msg.sender) || verifyMerkle(proof, trickstersRoot, msg.sender), "NOT WHITELISTED");
+        require(verifyMerkle(p1, reapersRoot, msg.sender) || verifyMerkle(p1, trickstersRoot, msg.sender), "NOT WHITELISTED");
         uint256 tokenId = beforeMint();
 
-        if (verifyMerkle(proof, reapersRoot, msg.sender)) {
+        if (verifyMerkle(p1, reapersRoot, msg.sender)) {
             attributes[tokenId].faction = 'Reapers';
         } else {
             attributes[tokenId].faction = 'Tricksters';
         }
         
-        if (verifyMerkle(proof, reapersRootTop, msg.sender) || verifyMerkle(proof, trickstersRootTop, msg.sender)) {
+        if (verifyMerkle(p2, topRoot, msg.sender)) {
             require(msg.value == mintPriceTop, 'WRONG VALUE');
         } else {
             require(msg.value == mintPrice, 'WRONG VALUE');

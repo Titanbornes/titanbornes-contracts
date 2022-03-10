@@ -22,8 +22,14 @@ describe('Titanbornes', async () => {
         merkleTree: trickstersMerkleTree,
     } = createMerkleTree('tricksters')
 
+    let {
+        rootHash: topRootHash,
+        leafNodes: topLeafNodes,
+        merkleTree: topMerkleTree,
+    } = createMerkleTree('top')
+
     console.log(
-        reapersMerkleTree.getHexProof(
+        topMerkleTree.getHexProof(
             keccak256('0x3ada73b8bff6870071ac47484d10520cd41f2c23')
         )
     )
@@ -69,17 +75,15 @@ describe('Titanbornes', async () => {
 
     describe('setPrice', () => {
         it('Should change price.', async function () {
-            await titanbornesContract.setPrice(
-                await ethers.utils.parseEther('1')
-            )
+            await titanbornesContract.setPrice(ethers.utils.parseEther('1'), 0)
         })
     })
 
     describe('setMaxSupply', () => {
         it('Should modify maxSupply.', async function () {
-            await titanbornesContract.setMaxSupply(15000)
+            await titanbornesContract.setMaxSupply(5)
 
-            assert.equal(await titanbornesContract.maxSupply(), 15000)
+            assert.equal(await titanbornesContract.maxSupply(), 5)
         })
     })
 
@@ -118,8 +122,7 @@ describe('Titanbornes', async () => {
             await titanbornesContract.setRootHashes(
                 reapersRootHash,
                 trickstersRootHash,
-                reapersRootHash,
-                trickstersRootHash
+                topRootHash
             )
         })
     })
@@ -139,16 +142,22 @@ describe('Titanbornes', async () => {
                             reapersMerkleTree.getHexProof(
                                 keccak256(signer.address)
                             ),
+                            topMerkleTree.getHexProof(
+                                keccak256(signer.address)
+                            ),
                             {
-                                value: ethers.utils.parseEther('1'),
+                                value: ethers.utils.parseEther('0'),
                             }
                         )
                 }
             } else {
                 await titanbornesContract.presaleMint(
-                    reapersMerkleTree.getHexProof(
+                    topMerkleTree.getHexProof(
                         keccak256('0x3ada73b8bff6870071ac47484d10520cd41f2c23')
-                    )
+                    ),
+                    {
+                        value: ethers.utils.parseEther('0'),
+                    }
                 )
             }
 
@@ -186,6 +195,14 @@ describe('Titanbornes', async () => {
         })
     })
 
+    describe('setMintState', () => {
+        it('Should change mint state.', async function () {
+            await titanbornesContract.setMintState(2)
+
+            assert.equal(await titanbornesContract.mintState(), 2)
+        })
+    })
+
     describe('MintSec', () => {
         it('Should mint.', async function () {
             const [owner, second, third, fourth, fifth, sixth, seventh] =
@@ -195,16 +212,9 @@ describe('Titanbornes', async () => {
 
             if (hre.network.config.chainId == 31337) {
                 for (const signer of signers) {
-                    await titanbornesContract
-                        .connect(signer)
-                        .presaleMint(
-                            reapersMerkleTree.getHexProof(
-                                keccak256(signer.address)
-                            ),
-                            {
-                                value: ethers.utils.parseEther('1'),
-                            }
-                        )
+                    await titanbornesContract.connect(signer).publicMint({
+                        value: ethers.utils.parseEther('1'),
+                    })
                 }
             }
             // console.log(`tokenURI: ${await titanbornesContract.tokenURI(0)}`.yellow);
