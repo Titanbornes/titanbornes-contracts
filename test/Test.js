@@ -36,6 +36,7 @@ describe('Titanbornes', async () => {
 
     console.log(`Reapers Root Hash is: ${reapersRootHash}`.blue)
     console.log(`Tricksters Root Hash is: ${trickstersRootHash}`.blue)
+    console.log(`Top Root Hash is: ${topRootHash}`.blue)
 
     describe('DeployTitanbornes', () => {
         it('Should deploy.', async function () {

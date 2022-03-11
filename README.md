@@ -47,7 +47,7 @@ Copy `sample.env` to `.env` and edit in your keys. Then:
 npm run rinkeby
 ```
 
-You can also use the `hardhat-etherscan-verify` plugin to verify the contract on Etherscan.
+You can also use the `verify` scripts to verify the contract on Etherscan.
 
 ```
 npx hardhat verify --network rinkeby <YOUR_CONTRACT_ADDRESS>

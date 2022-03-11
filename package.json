@@ -8,6 +8,7 @@
     "scripts": {
         "rinkeby": "npx hardhat run scripts/deploy.js --network rinkeby",
         "mainnet": "npx hardhat run scripts/deploy.js --network mainnet",
+        "verify-rinkeby": "npx hardhat verify --network rinkeby $address",
         "update": "npx npm-check-updates -u"
     },
     "dependencies": {

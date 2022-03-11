@@ -31,11 +31,10 @@ contract Titanbornes is ERC721, Pausable, Ownable, ReentrancyGuard {
     // Variables
     address public royaltyReceiver = 0xF7978705D1635818F996C25950b3dE622174DD1e;
     bool public fuse = true; // Controls the fusion logic flow
-    bool public characterized; 
     string public endpoint = "https://titanbornes.herokuapp.com/api/metadata/";
     bytes32 public reapersRoot = 0xfdd8a991eaa70924a5426f007fb2c9394dbe2eacd4a818a60803652a456f0861;
     bytes32 public trickstersRoot = 0x6dc9c21acc3f001441ba4427a8aa0ba5244b5873d0a59acd62e9f221fd05c80e;
-    bytes32 public topRoot;
+    bytes32 public topRoot = 0xe0103f32307c6597f1b0e1be664e725f3fe62465f4fec1ed6898c4d9be2ec155;
     uint256 public generation = 0; // Will only be used if voted on by the DAO, if and when supply drops to triple-digits.
     uint256 public mintPrice = 80000000000000000;
     uint256 public mintPriceTop = 0;
@@ -51,7 +50,7 @@ contract Titanbornes is ERC721, Pausable, Ownable, ReentrancyGuard {
     mapping(uint256 => attributesStruct) public attributes;
 
     // Owner-only Functions
-    constructor() ERC721("Fusion-Eventful-Two", "FE") {}
+    constructor() ERC721("Fusion-Destination", "FD") {}
 
     function withdraw() external onlyOwner {
         payable(msg.sender).transfer(address(this).balance);

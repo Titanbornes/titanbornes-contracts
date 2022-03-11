@@ -34,6 +34,9 @@ module.exports = {
             accounts: [process.env.MAINNET_PRIVATE_KEY],
         },
     },
+    etherscan: {
+        apiKey: process.env.ETHERSCAN_KEY,
+    },
     gasReporter: {
         enabled: true,
         coinmarketcap: process.env.CMC_KEY,
