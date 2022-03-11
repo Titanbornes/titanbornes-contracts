@@ -30,7 +30,7 @@ module.exports = {
             accounts: [process.env.RINKEBY_PRIVATE_KEY],
         },
         ethereum: {
-            url: process.env.INFURA_MAINNET_ENDPOINT,
+            url: process.env.ALCHEMY_MAINNET_ENDPOINT,
             accounts: [process.env.MAINNET_PRIVATE_KEY],
         },
     },

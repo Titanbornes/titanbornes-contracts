@@ -6,7 +6,8 @@
     "keywords": [],
     "description": "",
     "scripts": {
-        "rinkeby": "npx hardhat run scripts/mainDeploy.js --network rinkeby",
+        "rinkeby": "npx hardhat run scripts/deploy.js --network rinkeby",
+        "mainnet": "npx hardhat run scripts/deploy.js --network mainnet",
         "update": "npx npm-check-updates -u"
     },
     "dependencies": {
