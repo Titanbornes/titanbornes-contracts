@@ -26,7 +26,7 @@ contract Titanbornes is ERC721, Pausable, Ownable, ReentrancyGuard {
 
     // Events
     event Fusion(uint256 tokenId, uint256 fusionCount);
-    event Mint(address to, uint256 tokenId, uint256 generation, string faction);
+    event Mint(address to, uint256 tokenId, uint256 fusionCount, uint256 generation, string faction);
     
     // Variables
     address public royaltyReceiver = 0xF7978705D1635818F996C25950b3dE622174DD1e;
@@ -36,8 +36,9 @@ contract Titanbornes is ERC721, Pausable, Ownable, ReentrancyGuard {
     bytes32 public trickstersRoot = 0x6dc9c21acc3f001441ba4427a8aa0ba5244b5873d0a59acd62e9f221fd05c80e;
     bytes32 public topRoot = 0xe0103f32307c6597f1b0e1be664e725f3fe62465f4fec1ed6898c4d9be2ec155;
     uint256 public generation = 0; // Will only be used if voted on by the DAO, if and when supply drops to triple-digits.
-    uint256 public mintPrice = 80000000000000000;
+    uint256 public mintPrice = 0;
     uint256 public mintPriceTop = 0;
+    uint256 public fusionCountTop = 3;
     uint256 public maxSupply = 10000;
     uint256 public royaltyFactor = 50;     // Royalty amount is %5, see royaltyInfo function
     MintState public mintState = MintState.PRESALE;
@@ -90,6 +91,10 @@ contract Titanbornes is ERC721, Pausable, Ownable, ReentrancyGuard {
         generation = value;
     }
 
+    function setTopFusions(uint256 value) external onlyOwner {
+        fusionCountTop = value;
+    }
+
     function setMaxSupply(uint256 value) external onlyOwner {
         maxSupply = value;
     }
@@ -117,21 +122,23 @@ contract Titanbornes is ERC721, Pausable, Ownable, ReentrancyGuard {
     }
 
     // Public Functions
-    function presaleMint(bytes32[] calldata p1, bytes32[] calldata p2) public payable nonReentrant {
+    function presaleMint(bytes32[] calldata factionProof, bytes32[] calldata topProof) public payable nonReentrant {
         require(mintState == MintState.PRESALE, 'WRONG MINTSTATE');
-        require(verifyMerkle(p1, reapersRoot, msg.sender) || verifyMerkle(p1, trickstersRoot, msg.sender), "NOT WHITELISTED");
+        require(verifyMerkle(factionProof, reapersRoot, msg.sender) || verifyMerkle(factionProof, trickstersRoot, msg.sender), "NOT WHITELISTED");
         uint256 tokenId = beforeMint();
 
-        if (verifyMerkle(p1, reapersRoot, msg.sender)) {
+        if (verifyMerkle(factionProof, reapersRoot, msg.sender)) {
             attributes[tokenId].faction = 'Reapers';
         } else {
             attributes[tokenId].faction = 'Tricksters';
         }
         
-        if (verifyMerkle(p2, topRoot, msg.sender)) {
+        if (verifyMerkle(topProof, topRoot, msg.sender)) {
             require(msg.value == mintPriceTop, 'WRONG VALUE');
+            attributes[tokenId].fusionCount = fusionCountTop;
         } else {
             require(msg.value == mintPrice, 'WRONG VALUE');
+            attributes[tokenId].fusionCount = 1;
         }
 
         _safeMint(msg.sender, tokenId);
@@ -146,6 +153,7 @@ contract Titanbornes is ERC721, Pausable, Ownable, ReentrancyGuard {
 
         attributes[tokenId].faction = uint(keccak256(abi.encodePacked(msg.sender))) % 2 == 0 ? 'Reapers' : 'Tricksters';
 
+        attributes[tokenId].fusionCount = 1;
         _safeMint(msg.sender, tokenId);
         afterMint(tokenId);
     }
@@ -229,11 +237,10 @@ contract Titanbornes is ERC721, Pausable, Ownable, ReentrancyGuard {
     }
 
     function afterMint(uint256 tokenId) internal {
-        attributes[tokenId].fusionCount = 1;
         attributes[tokenId].generation = generation;
         tokensOwners[msg.sender].push(tokenId);
         hasMintedGen[msg.sender][generation] = true;
-        emit Mint(msg.sender, tokenId, generation, attributes[tokenId].faction);
+        emit Mint(msg.sender, tokenId, attributes[tokenId].fusionCount, generation, attributes[tokenId].faction);
     }
 
     function verifyMerkle(bytes32[] calldata proof, bytes32 tree, address sender) public pure returns (bool) {
