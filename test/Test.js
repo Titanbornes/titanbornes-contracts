@@ -5,10 +5,7 @@ const createMerkleTree = require('../utils/createMerkleTree')
 const keccak256 = require('keccak256')
 
 describe('Titanbornes', async () => {
-    let titanbornesContractFactory,
-        titanbornesContract,
-        proxyContractFactory,
-        proxyContract
+    let titanbornesContractFactory, titanbornesContract
 
     let {
         rootHash: reapersRootHash,
@@ -22,21 +19,8 @@ describe('Titanbornes', async () => {
         merkleTree: trickstersMerkleTree,
     } = createMerkleTree('tricksters')
 
-    let {
-        rootHash: topRootHash,
-        leafNodes: topLeafNodes,
-        merkleTree: topMerkleTree,
-    } = createMerkleTree('top')
-
-    console.log(
-        topMerkleTree.getHexProof(
-            keccak256('0x3ada73b8bff6870071ac47484d10520cd41f2c23')
-        )
-    )
-
     console.log(`Reapers Root Hash is: ${reapersRootHash}`.blue)
     console.log(`Tricksters Root Hash is: ${trickstersRootHash}`.blue)
-    console.log(`Top Root Hash is: ${topRootHash}`.blue)
 
     describe('DeployTitanbornes', () => {
         it('Should deploy.', async function () {
@@ -76,7 +60,7 @@ describe('Titanbornes', async () => {
 
     describe('setPrice', () => {
         it('Should change price.', async function () {
-            await titanbornesContract.setPrice(ethers.utils.parseEther('1'), 0)
+            await titanbornesContract.setPrice(ethers.utils.parseEther('1'))
         })
     })
 
@@ -88,42 +72,11 @@ describe('Titanbornes', async () => {
         })
     })
 
-    describe('setStakingAddresses', () => {
-        it('Should set a staking address.', async function () {
-            await titanbornesContract.setStakingAddresses(
-                '0xf57b2c51ded3a29e6891aba85459d600256cf317'
-            )
-
-            assert.equal(
-                await titanbornesContract.stakingAddresses(
-                    '0xf57b2c51ded3a29e6891aba85459d600256cf317'
-                ),
-                true
-            )
-        })
-    })
-
-    describe('setProxies', () => {
-        it('Should flip proxy state.', async function () {
-            await titanbornesContract.setProxies(
-                '0xf57b2c51ded3a29e6891aba85459d600256cf317'
-            )
-
-            assert.equal(
-                await titanbornesContract.approvedProxies(
-                    '0xf57b2c51ded3a29e6891aba85459d600256cf317'
-                ),
-                true
-            )
-        })
-    })
-
     describe('sendRootHash', () => {
         it('Should send rootHash.', async function () {
             await titanbornesContract.setRootHashes(
                 reapersRootHash,
-                trickstersRootHash,
-                topRootHash
+                trickstersRootHash
             )
         })
     })
@@ -139,25 +92,22 @@ describe('Titanbornes', async () => {
                 for (const signer of signers) {
                     await titanbornesContract
                         .connect(signer)
-                        .presaleMint(
+                        .mint(
                             reapersMerkleTree.getHexProof(
                                 keccak256(signer.address)
                             ),
-                            topMerkleTree.getHexProof(
-                                keccak256(signer.address)
-                            ),
                             {
-                                value: ethers.utils.parseEther('0'),
+                                value: ethers.utils.parseEther('1'),
                             }
                         )
                 }
             } else {
-                await titanbornesContract.presaleMint(
-                    topMerkleTree.getHexProof(
+                await titanbornesContract.mint(
+                    reapersMerkleTree.getHexProof(
                         keccak256('0x3ada73b8bff6870071ac47484d10520cd41f2c23')
                     ),
                     {
-                        value: ethers.utils.parseEther('0'),
+                        value: ethers.utils.parseEther('1'),
                     }
                 )
             }
@@ -193,162 +143,6 @@ describe('Titanbornes', async () => {
             await titanbornesContract.modifyGen(1)
 
             assert.equal(await titanbornesContract.generation(), 1)
-        })
-    })
-
-    describe('setMintState', () => {
-        it('Should change mint state.', async function () {
-            await titanbornesContract.setMintState(2)
-
-            assert.equal(await titanbornesContract.mintState(), 2)
-        })
-    })
-
-    describe('MintSec', () => {
-        it('Should mint.', async function () {
-            const [owner, second, third, fourth, fifth, sixth, seventh] =
-                await hre.ethers.getSigners()
-
-            const signers = [fourth, fifth]
-
-            if (hre.network.config.chainId == 31337) {
-                for (const signer of signers) {
-                    await titanbornesContract.connect(signer).publicMint({
-                        value: ethers.utils.parseEther('1'),
-                    })
-                }
-            }
-            // console.log(`tokenURI: ${await titanbornesContract.tokenURI(0)}`.yellow);
-        })
-
-        describe('safeTransferFromSec', () => {
-            it('Should safely transfer.', async function () {
-                const [owner, second, third, fourth, fifth, sixth, seventh] =
-                    await hre.ethers.getSigners()
-
-                assert.equal(
-                    await titanbornesContract.tokensOwners(fourth.address, 0),
-                    3
-                )
-                assert.equal(
-                    await titanbornesContract.ownerOf(3),
-                    fourth.address
-                )
-                assert.equal(
-                    await titanbornesContract.balanceOf(fourth.address),
-                    1
-                )
-                assert.equal(
-                    await titanbornesContract.balanceOf(owner.address),
-                    1
-                )
-
-                await titanbornesContract
-                    .connect(fourth)
-                    ['safeTransferFrom(address,address,uint256)'](
-                        fourth.address,
-                        owner.address,
-                        3
-                    )
-
-                assert.equal(
-                    await titanbornesContract.tokensOwners(fourth.address, 0),
-                    0
-                )
-                assert.equal(
-                    await titanbornesContract.balanceOf(owner.address),
-                    1
-                )
-                assert.equal(
-                    await titanbornesContract.balanceOf(fourth.address),
-                    0
-                )
-            })
-        })
-
-        describe('Withdraw', () => {
-            it('Should withdraw.', async function () {
-                const [owner, second, third, fourth, fifth, sixth, seventh] =
-                    await hre.ethers.getSigners()
-
-                const provider = ethers.provider
-
-                assert.isAbove(
-                    await provider.getBalance(titanbornesContract.address),
-                    0
-                )
-
-                await titanbornesContract.withdraw()
-
-                assert.equal(
-                    await provider.getBalance(titanbornesContract.address),
-                    0
-                )
-            })
-        })
-
-        describe('DeployProxy', () => {
-            it('Should deploy proxy contract.', async function () {
-                const [owner, second, third, fourth, fifth, sixth, seventh] =
-                    await hre.ethers.getSigners()
-
-                proxyContractFactory = await ethers.getContractFactory('Proxy')
-                proxyContract = await proxyContractFactory.deploy()
-                await proxyContract.deployed()
-
-                console.log(
-                    `proxyContract address is: ${proxyContract.address}`.blue
-                )
-            })
-        })
-
-        describe('SetTitanbornesAddress', () => {
-            it('Should set titanbornes address in proxy.', async function () {
-                const [owner, second, third, fourth, fifth, sixth, seventh] =
-                    await hre.ethers.getSigners()
-
-                await proxyContract.setTitanbornesAddress(
-                    titanbornesContract.address
-                )
-
-                assert.equal(
-                    await proxyContract.titanbornesAddress(),
-                    titanbornesContract.address
-                )
-            })
-        })
-
-        describe('SetProxyAddress', () => {
-            it('Should set proxy address in titanbornes.', async function () {
-                const [owner, second, third, fourth, fifth, sixth, seventh] =
-                    await hre.ethers.getSigners()
-
-                await titanbornesContract.setProxies(proxyContract.address)
-
-                assert.equal(
-                    await titanbornesContract.approvedProxies(
-                        proxyContract.address
-                    ),
-                    true
-                )
-            })
-        })
-
-        describe('flipFuse', () => {
-            it('Should flip fuse.', async function () {
-                await titanbornesContract.flipFuse()
-
-                assert.equal(await titanbornesContract.fuse(), false)
-            })
-        })
-
-        describe('CallIncreaseFusionCount', () => {
-            it('Should call increaseFusionCount in original contract.', async function () {
-                const [owner, second, third, fourth, fifth, sixth, seventh] =
-                    await hre.ethers.getSigners()
-
-                await proxyContract.incrementFusionCount(0)
-            })
         })
     })
 })

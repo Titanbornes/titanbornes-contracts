@@ -15,7 +15,7 @@ contract Titanbornes is ERC721, Pausable, Ownable, ReentrancyGuard {
     Counters.Counter private _tokenIdCounter;
 
     // Enums
-    enum MintState { WAITING, PRESALE, PUBLIC }
+    enum MintState { WAITING, MINTING }
 
     // Structs
     struct attributesStruct {
@@ -30,28 +30,22 @@ contract Titanbornes is ERC721, Pausable, Ownable, ReentrancyGuard {
     
     // Variables
     address public royaltyReceiver = 0xF7978705D1635818F996C25950b3dE622174DD1e;
-    bool public fuse = true; // Controls the fusion logic flow
     string public endpoint = "https://titanbornes.herokuapp.com/api/metadata/";
     bytes32 public reapersRoot = 0xfdd8a991eaa70924a5426f007fb2c9394dbe2eacd4a818a60803652a456f0861;
     bytes32 public trickstersRoot = 0x6dc9c21acc3f001441ba4427a8aa0ba5244b5873d0a59acd62e9f221fd05c80e;
-    bytes32 public topRoot = 0xe0103f32307c6597f1b0e1be664e725f3fe62465f4fec1ed6898c4d9be2ec155;
     uint256 public generation = 0; // Will only be used if voted on by the DAO, if and when supply drops to triple-digits.
     uint256 public mintPrice = 0;
-    uint256 public mintPriceTop = 0;
-    uint256 public fusionCountTop = 3;
-    uint256 public maxSupply = 10000;
+    uint256 public maxSupply = 1000;
     uint256 public royaltyFactor = 50;     // Royalty amount is %5, see royaltyInfo function
-    MintState public mintState = MintState.PRESALE;
+    MintState public mintState = MintState.WAITING;
 
     // Mappings
-    mapping(address => bool) public stakingAddresses;
-    mapping(address => bool) public approvedProxies;
     mapping(address => mapping (uint256 => bool)) public hasMintedGen;
-    mapping(address => uint256[]) public tokensOwners;
+    mapping(address => uint256) public tokensOwners;
     mapping(uint256 => attributesStruct) public attributes;
 
     // Owner-only Functions
-    constructor() ERC721("Fusion-Destination", "FD") {}
+    constructor() ERC721("Fusion-Destination-Stripped", "FDS") {}
 
     function withdraw() external onlyOwner {
         payable(msg.sender).transfer(address(this).balance);
@@ -73,9 +67,8 @@ contract Titanbornes is ERC721, Pausable, Ownable, ReentrancyGuard {
         endpoint = value;
     }
 
-    function setPrice(uint256 p, uint256 t) external onlyOwner {
-        mintPrice = p;
-        mintPriceTop = t;
+    function setPrice(uint256 value) external onlyOwner {
+        mintPrice = value;
     }
 
     function setRoyaltyInfo(uint256 factor, address receiver) external onlyOwner {
@@ -83,49 +76,29 @@ contract Titanbornes is ERC721, Pausable, Ownable, ReentrancyGuard {
         royaltyReceiver = receiver;
     }
 
-    function flipFuse() external onlyOwner {
-        fuse = !fuse;
-    }
-
     function modifyGen(uint256 value) external onlyOwner {
         generation = value;
-    }
-
-    function setTopFusions(uint256 value) external onlyOwner {
-        fusionCountTop = value;
     }
 
     function setMaxSupply(uint256 value) external onlyOwner {
         maxSupply = value;
     }
 
-    function setStakingAddresses(address value) external onlyOwner {
-        stakingAddresses[value] = !stakingAddresses[value];
-    }
-
-    function setProxies(address value) external onlyOwner {
-        approvedProxies[value] = !approvedProxies[value];
-    }
-
-    function setRootHashes(bytes32 r, bytes32 t, bytes32 top) external onlyOwner {
+    function setRootHashes(bytes32 r, bytes32 t) external onlyOwner {
         reapersRoot = r;
         trickstersRoot = t;
-        topRoot = top;
-    }
-
-    // Protected Functions
-    function incrementFusionCount(uint256 tokenId) external nonReentrant {
-        require(approvedProxies[msg.sender], 'UNAUTHORIZED');
-        require(!fuse, 'NOT YET');
-        attributes[tokenId].fusionCount++;
-        emit Fusion(tokenId, attributes[tokenId].fusionCount);
     }
 
     // Public Functions
-    function presaleMint(bytes32[] calldata factionProof, bytes32[] calldata topProof) public payable nonReentrant {
-        require(mintState == MintState.PRESALE, 'WRONG MINTSTATE');
+    function mint(bytes32[] calldata factionProof) public payable nonReentrant {
+        require(mintState == MintState.MINTING, 'WRONG MINTSTATE');
         require(verifyMerkle(factionProof, reapersRoot, msg.sender) || verifyMerkle(factionProof, trickstersRoot, msg.sender), "NOT WHITELISTED");
-        uint256 tokenId = beforeMint();
+        require(!hasMintedGen[msg.sender][generation], 'ALREADY MINTED');
+        require(balanceOf(msg.sender) == 0, 'ALREADY OWNS');
+
+        uint256 tokenId = _tokenIdCounter.current();
+        require(tokenId < maxSupply, 'MAX REACHED');
+        _tokenIdCounter.increment();
 
         if (verifyMerkle(factionProof, reapersRoot, msg.sender)) {
             attributes[tokenId].faction = 'Reapers';
@@ -133,29 +106,14 @@ contract Titanbornes is ERC721, Pausable, Ownable, ReentrancyGuard {
             attributes[tokenId].faction = 'Tricksters';
         }
         
-        if (verifyMerkle(topProof, topRoot, msg.sender)) {
-            require(msg.value == mintPriceTop, 'WRONG VALUE');
-            attributes[tokenId].fusionCount = fusionCountTop;
-        } else {
-            require(msg.value == mintPrice, 'WRONG VALUE');
-            attributes[tokenId].fusionCount = 1;
-        }
-
-        _safeMint(msg.sender, tokenId);
-        afterMint(tokenId);
-    }
-
-    function publicMint() public payable nonReentrant {
-        require(mintState == MintState.PUBLIC, 'WRONG MINTSTATE');
-        uint256 tokenId = beforeMint();
-
         require(msg.value == mintPrice, 'WRONG VALUE');
-
-        attributes[tokenId].faction = uint(keccak256(abi.encodePacked(msg.sender))) % 2 == 0 ? 'Reapers' : 'Tricksters';
-
-        attributes[tokenId].fusionCount = 1;
         _safeMint(msg.sender, tokenId);
-        afterMint(tokenId);
+        
+        attributes[tokenId].fusionCount = 1;
+        attributes[tokenId].generation = generation;
+        tokensOwners[msg.sender] = tokenId;
+        hasMintedGen[msg.sender][generation] = true;
+        emit Mint(msg.sender, tokenId, attributes[tokenId].fusionCount, generation, attributes[tokenId].faction);
     }
 
     // Relies on manually changing _balances and _owners variables from private to internal in ERC-721.sol
@@ -170,38 +128,21 @@ contract Titanbornes is ERC721, Pausable, Ownable, ReentrancyGuard {
 
         _beforeTokenTransfer(from, to, tokenId);
 
-        if(balanceOf(to) == 0 || stakingAddresses[to] || !fuse) { // Transaction proceeds as normal
-            // Clear approvals from the previous owner
-            _approve(address(0), tokenId);
-
-            _balances[from] -= 1;
-            _balances[to] += 1;
+        
+        if (attributes[tokenId].generation < attributes[tokensOwners[to]].generation) {
+            attributes[tokenId].fusionCount += attributes[tokensOwners[to]].fusionCount;
+            _burn(tokensOwners[to]);
+            delete tokensOwners[to];
             _owners[tokenId] = to;
-            tokensOwners[to].push(tokenId);
-        } else { // Fusion
-            if (attributes[tokenId].generation < attributes[tokensOwners[to][0]].generation) {
-                attributes[tokenId].fusionCount += attributes[tokensOwners[to][0]].fusionCount;
-                _burn(tokensOwners[to][0]);
-                delete tokensOwners[to][0];
-                _owners[tokenId] = to;
-                tokensOwners[to].push(tokenId);
-                emit Fusion(tokenId, attributes[tokenId].fusionCount);
-            } else {
-                attributes[tokensOwners[to][0]].fusionCount += attributes[tokenId].fusionCount;
-                _burn(tokenId);
-                emit Fusion(tokensOwners[to][0], attributes[tokensOwners[to][0]].fusionCount);
-            }
-        }
-
-        if (stakingAddresses[from] || !fuse) {
-            for (uint256 i = 0; i < tokensOwners[from].length; i++) {
-                if (tokensOwners[from][i] == tokenId) {
-                    delete tokensOwners[from][i];
-                }
-            }
+            tokensOwners[to] = tokenId;
+            emit Fusion(tokenId, attributes[tokenId].fusionCount);
         } else {
-            delete tokensOwners[from][0];
+            attributes[tokensOwners[to]].fusionCount += attributes[tokenId].fusionCount;
+            _burn(tokenId);
+            emit Fusion(tokensOwners[to], attributes[tokensOwners[to]].fusionCount);
         }
+        
+        delete tokensOwners[from];
         emit Transfer(from, to, tokenId);
     }
 
@@ -223,24 +164,6 @@ contract Titanbornes is ERC721, Pausable, Ownable, ReentrancyGuard {
             || interfaceId == _ERC721_
             || interfaceId == _ERC2981_
             || interfaceId == _ERC721Metadata_;
-    }
-
-    function beforeMint() internal returns (uint256) {
-        require(!hasMintedGen[msg.sender][generation], 'ALREADY MINTED');
-        require(balanceOf(msg.sender) == 0, 'ALREADY OWNS');
-
-        uint256 tokenId = _tokenIdCounter.current();
-        require(tokenId < maxSupply, 'ALL MINTED');
-        
-        _tokenIdCounter.increment();
-        return tokenId;
-    }
-
-    function afterMint(uint256 tokenId) internal {
-        attributes[tokenId].generation = generation;
-        tokensOwners[msg.sender].push(tokenId);
-        hasMintedGen[msg.sender][generation] = true;
-        emit Mint(msg.sender, tokenId, attributes[tokenId].fusionCount, generation, attributes[tokenId].faction);
     }
 
     function verifyMerkle(bytes32[] calldata proof, bytes32 tree, address sender) public pure returns (bool) {

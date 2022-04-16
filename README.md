@@ -6,7 +6,7 @@
 
 -   Website: [titanbornes.com](https://titanbornes.com/)
 -   Twitter: [@titanbornes](https://twitter.com/titanbornes)
--   Discord: [discord.gg/uc2zH6SYmy](https://discord.gg/uc2zH6SYmy)
+-   Discord: [discord.gg/titanbornes](https://discord.gg/titanbornes)
 
 ## Usage
 
