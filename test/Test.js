@@ -92,7 +92,7 @@ describe('Titanbornes', async () => {
                 for (const signer of signers) {
                     await titanbornesContract
                         .connect(signer)
-                        .mint(
+                        .privateMint(
                             reapersMerkleTree.getHexProof(
                                 keccak256(signer.address)
                             ),
@@ -102,7 +102,7 @@ describe('Titanbornes', async () => {
                         )
                 }
             } else {
-                await titanbornesContract.mint(
+                await titanbornesContract.privateMint(
                     reapersMerkleTree.getHexProof(
                         keccak256('0x3ada73b8bff6870071ac47484d10520cd41f2c23')
                     ),
