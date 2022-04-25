@@ -29,19 +29,19 @@ contract Titanbornes is ERC721, Pausable, Ownable, ReentrancyGuard {
     event Mint(address to, uint256 tokenId, uint256 fusionCount, uint256 generation, string faction);
     
     // Variables
-    address public royaltyReceiver = 0xF7978705D1635818F996C25950b3dE622174DD1e;
-    string public endpoint = "https://titanbornes.herokuapp.com/api/metadata/";
+    address private royaltyReceiver;
+    string private endpoint = "https://titanbornes.herokuapp.com/api/metadata/";
     bytes32 private reapersRoot;
     bytes32 private trickstersRoot;
-    uint256 public generation = 0;
-    uint256 public mintPrice = 0;
-    uint256 public maxSupply = 1000;
-    uint256 public royaltyFactor = 50;     // Royalty amount is %5, see royaltyInfo function
+    uint256 private generation = 0;
+    uint256 private mintPrice = 0;
+    uint256 private maxSupply = 1000;
+    uint256 private royaltyFactor = 50;     // Royalty amount is %5, see royaltyInfo function
     MintState public mintState = MintState.WAITING;
 
     // Mappings
-    mapping(address => mapping (uint256 => bool)) public hasMintedGen;
-    mapping(address => uint256) public tokenOwners;
+    mapping(address => mapping (uint256 => bool)) private hasMintedGen;
+    mapping(address => uint256) private tokenOf;
     mapping(uint256 => attributesStruct) public attributes;
 
     // Owner-only Functions
@@ -111,7 +111,7 @@ contract Titanbornes is ERC721, Pausable, Ownable, ReentrancyGuard {
         
         attributes[tokenId].fusionCount = 1;
         attributes[tokenId].generation = generation;
-        tokenOwners[msg.sender] = tokenId;
+        tokenOf[msg.sender] = tokenId;
         hasMintedGen[msg.sender][generation] = true;
         emit Mint(msg.sender, tokenId, attributes[tokenId].fusionCount, generation, attributes[tokenId].faction);
     }
@@ -131,12 +131,14 @@ contract Titanbornes is ERC721, Pausable, Ownable, ReentrancyGuard {
         attributes[tokenId].faction = uint(keccak256(abi.encodePacked(msg.sender))) % 2 == 0 ? 'Reapers' : 'Tricksters';
         attributes[tokenId].fusionCount = 1;
         attributes[tokenId].generation = generation;
-        tokenOwners[msg.sender] = tokenId;
+        tokenOf[msg.sender] = tokenId;
         hasMintedGen[msg.sender][generation] = true;
         emit Mint(msg.sender, tokenId, attributes[tokenId].fusionCount, generation, attributes[tokenId].faction);
     }
 
-    // Relies on manually changing _owners variable from private to internal in ERC-721.sol
+    /** 
+     * @dev Relies on manually changing _owners & _balances variables from private to internal in ERC-721.sol
+     */
     function _transfer(
         address from,
         address to,
@@ -146,22 +148,30 @@ contract Titanbornes is ERC721, Pausable, Ownable, ReentrancyGuard {
         require(to != address(0), 'ILLEGAL TRANSFER');
         require(from != to, 'ILLEGAL TRANSFER');
 
-        _beforeTokenTransfer(from, to, tokenId);
-        
-        if (attributes[tokenId].generation < attributes[tokenOwners[to]].generation) {
-            attributes[tokenId].fusionCount += attributes[tokenOwners[to]].fusionCount;
-            _burn(tokenOwners[to]);
-            delete tokenOwners[to];
+        if (balanceOf(to) == 0) {
+            _beforeTokenTransfer(from, to, tokenId);
+
+            _approve(address(0), tokenId);
+
+            _balances[from] -= 1;
+            _balances[to] += 1;
             _owners[tokenId] = to;
-            tokenOwners[to] = tokenId;
-            emit Fusion(tokenId, attributes[tokenId].fusionCount);
+            tokenOf[to] = tokenId;
+
+            _afterTokenTransfer(from, to, tokenId);
         } else {
-            attributes[tokenOwners[to]].fusionCount += attributes[tokenId].fusionCount;
             _burn(tokenId);
-            emit Fusion(tokenOwners[to], attributes[tokenOwners[to]].fusionCount);
+
+            attributes[tokenOf[to]].fusionCount += attributes[tokenId].fusionCount;
+
+            if (attributes[tokenId].generation < attributes[tokenOf[to]].generation) {
+                attributes[tokenOf[to]].generation = attributes[tokenId].generation;
+            }
+
+            emit Fusion(tokenOf[to], attributes[tokenOf[to]].fusionCount);   
         }
-        
-        delete tokenOwners[from];
+
+        delete tokenOf[from];
         emit Transfer(from, to, tokenId);
     }
 

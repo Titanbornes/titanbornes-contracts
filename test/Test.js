@@ -50,11 +50,6 @@ describe('Titanbornes', async () => {
             await titanbornesContract.setEndpoint(
                 'https://titanbornes.herokuapp.com/api/tokenURI/'
             )
-
-            assert.equal(
-                await titanbornesContract.endpoint(),
-                'https://titanbornes.herokuapp.com/api/tokenURI/'
-            )
         })
     })
 
@@ -67,8 +62,6 @@ describe('Titanbornes', async () => {
     describe('setMaxSupply', () => {
         it('Should modify maxSupply.', async function () {
             await titanbornesContract.setMaxSupply(5)
-
-            assert.equal(await titanbornesContract.maxSupply(), 5)
         })
     })
 
@@ -141,8 +134,6 @@ describe('Titanbornes', async () => {
     describe('modifyGen', () => {
         it('Should modify generation.', async function () {
             await titanbornesContract.modifyGen(1)
-
-            assert.equal(await titanbornesContract.generation(), 1)
         })
     })
 })
