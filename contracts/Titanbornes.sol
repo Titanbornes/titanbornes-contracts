@@ -2,12 +2,22 @@
 // Author: @Accretence
 pragma solidity ^0.8.0;
 
+/*
+ * ████████╗██╗████████╗ █████╗ ███╗   ██╗██████╗  ██████╗ ██████╗ ███╗   ██╗███████╗███████╗
+ * ╚══██╔══╝██║╚══██╔══╝██╔══██╗████╗  ██║██╔══██╗██╔═══██╗██╔══██╗████╗  ██║██╔════╝██╔════╝
+ *    ██║   ██║   ██║   ███████║██╔██╗ ██║██████╔╝██║   ██║██████╔╝██╔██╗ ██║█████╗  ███████╗
+ *    ██║   ██║   ██║   ██╔══██║██║╚██╗██║██╔══██╗██║   ██║██╔══██╗██║╚██╗██║██╔══╝  ╚════██║
+ *    ██║   ██║   ██║   ██║  ██║██║ ╚████║██████╔╝╚██████╔╝██║  ██║██║ ╚████║███████╗███████║
+ *    ╚═╝   ╚═╝   ╚═╝   ╚═╝  ╚═╝╚═╝  ╚═══╝╚═════╝  ╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═══╝╚══════╝╚══════╝
+ */
+
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/security/Pausable.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import "@openzeppelin/contracts/utils/Counters.sol";
 import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
+import "hardhat/console.sol";
 
 contract Titanbornes is ERC721, Pausable, Ownable, ReentrancyGuard {
     using MerkleProof for bytes32[];
@@ -30,13 +40,14 @@ contract Titanbornes is ERC721, Pausable, Ownable, ReentrancyGuard {
     
     // Variables
     address private royaltyReceiver;
-    string private endpoint = "https://titanbornes.herokuapp.com/api/metadata/";
     bytes32 private reapersRoot;
     bytes32 private trickstersRoot;
-    uint256 private generation = 0;
-    uint256 private mintPrice = 0;
-    uint256 private maxSupply = 1000;
-    uint256 private royaltyFactor = 50;     // Royalty amount is %5, see royaltyInfo function
+    uint256 private generation;
+    uint256 private mintPrice;
+    uint256 private maxSupply;
+    uint256 private royaltyFactor;
+    string private endpoint;
+
     MintState public mintState = MintState.WAITING;
 
     // Mappings
@@ -71,7 +82,7 @@ contract Titanbornes is ERC721, Pausable, Ownable, ReentrancyGuard {
         mintPrice = value;
     }
 
-    function setRoyaltyInfo(uint256 factor, address receiver) external onlyOwner {
+    function setRoyalty(uint256 factor, address receiver) external onlyOwner {
         royaltyFactor = factor;
         royaltyReceiver = receiver;
     }
@@ -170,7 +181,7 @@ contract Titanbornes is ERC721, Pausable, Ownable, ReentrancyGuard {
 
             emit Fusion(tokenOf[to], attributes[tokenOf[to]].fusionCount);   
         }
-
+        
         delete tokenOf[from];
         emit Transfer(from, to, tokenId);
     }

@@ -1,32 +1,22 @@
-const hre = require("hardhat");
+const hre = require('hardhat')
 
 async function main() {
-  const Contract = await hre.ethers.getContractFactory("Titanbornes");
-  const contract = await Contract.deploy();
+    const Contract = await hre.ethers.getContractFactory('Titanbornes')
+    const contract = await Contract.deploy()
 
-  await contract.deployed();
+    await contract.deployed()
 
-  console.log("Contract deployed to:", contract.address);
+    console.log('Contract deployed to:', contract.address)
 
-  const network = await ethers.provider.getNetwork();
-  const networkName = network.name == "unknown" ? "localhost" : network.name;
+    const network = await ethers.provider.getNetwork()
+    const networkName = network.name == 'unknown' ? 'localhost' : network.name
 
-  console.log(`Network: ${networkName} (chainId=${network.chainId})`);
-
-  if (networkName != "localhost") {
-    console.log("");
-    console.log("To verify this contract on Etherscan, try:");
-    console.log(
-      `npx hardhat verify --network ${networkName} ${contract.address}`
-    );
-  }
+    console.log(`Network: ${networkName} (chainId=${network.chainId})`)
 }
 
-// We recommend this pattern to be able to use async/await everywhere
-// and properly handle errors.
 main()
-  .then(() => process.exit(0))
-  .catch((error) => {
-    console.error(error);
-    process.exit(1);
-  });
+    .then(() => process.exit(0))
+    .catch(error => {
+        console.error(error)
+        process.exit(1)
+    })

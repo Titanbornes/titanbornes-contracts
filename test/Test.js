@@ -23,7 +23,7 @@ describe('Titanbornes', async () => {
     console.log(`Tricksters Root Hash is: ${trickstersRootHash}`.blue)
 
     describe('DeployTitanbornes', () => {
-        it('Should deploy.', async function () {
+        it('Should deploy.', async function() {
             titanbornesContractFactory = await ethers.getContractFactory(
                 'Titanbornes'
             )
@@ -37,8 +37,17 @@ describe('Titanbornes', async () => {
         })
     })
 
+    describe('setRoyalty', () => {
+        it('Should set royalty.', async function() {
+            await titanbornesContract.setRoyalty(
+                50,
+                '0xF7978705D1635818F996C25950b3dE622174DD1e'
+            )
+        })
+    })
+
     describe('setMintState', () => {
-        it('Should change mint state.', async function () {
+        it('Should change mint state.', async function() {
             await titanbornesContract.setMintState(1)
 
             assert.equal(await titanbornesContract.mintState(), 1)
@@ -46,7 +55,7 @@ describe('Titanbornes', async () => {
     })
 
     describe('setEndpoint', () => {
-        it('Should change endpoint.', async function () {
+        it('Should change endpoint.', async function() {
             await titanbornesContract.setEndpoint(
                 'https://titanbornes.herokuapp.com/api/tokenURI/'
             )
@@ -54,19 +63,19 @@ describe('Titanbornes', async () => {
     })
 
     describe('setPrice', () => {
-        it('Should change price.', async function () {
+        it('Should change price.', async function() {
             await titanbornesContract.setPrice(ethers.utils.parseEther('1'))
         })
     })
 
     describe('setMaxSupply', () => {
-        it('Should modify maxSupply.', async function () {
+        it('Should modify maxSupply.', async function() {
             await titanbornesContract.setMaxSupply(5)
         })
     })
 
     describe('sendRootHash', () => {
-        it('Should send rootHash.', async function () {
+        it('Should send rootHash.', async function() {
             await titanbornesContract.setRootHashes(
                 reapersRootHash,
                 trickstersRootHash
@@ -75,9 +84,16 @@ describe('Titanbornes', async () => {
     })
 
     describe('Mint', () => {
-        it('Should mint.', async function () {
-            const [owner, second, third, fourth, fifth, sixth, seventh] =
-                await hre.ethers.getSigners()
+        it('Should mint.', async function() {
+            const [
+                owner,
+                second,
+                third,
+                fourth,
+                fifth,
+                sixth,
+                seventh,
+            ] = await hre.ethers.getSigners()
 
             const signers = [owner, second, third]
 
@@ -110,9 +126,16 @@ describe('Titanbornes', async () => {
     })
 
     describe('safeTransferFrom', () => {
-        it('Should safely transfer.', async function () {
-            const [owner, second, third, fourth, fifth, sixth, seventh] =
-                await hre.ethers.getSigners()
+        it('Should safely transfer.', async function() {
+            const [
+                owner,
+                second,
+                third,
+                fourth,
+                fifth,
+                sixth,
+                seventh,
+            ] = await hre.ethers.getSigners()
 
             assert.equal(await titanbornesContract.ownerOf(1), second.address)
             assert.equal(await titanbornesContract.balanceOf(owner.address), 1)
@@ -132,7 +155,7 @@ describe('Titanbornes', async () => {
     })
 
     describe('modifyGen', () => {
-        it('Should modify generation.', async function () {
+        it('Should modify generation.', async function() {
             await titanbornesContract.modifyGen(1)
         })
     })
